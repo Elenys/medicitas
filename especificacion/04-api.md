@@ -4,6 +4,9 @@ REST sobre HTTP, implementada con Route Handlers de Next.js en `src/app/api/v1/�
 Sustantivos en plural, `kebab-case`, versión al inicio de la ruta, la acción la expresa el método
 HTTP — conforme al documento de estándares de codificación.
 
+La especificación OpenAPI 3.1 generada desde el código está en [`openapi.json`](openapi.json) y se
+consulta en `/api/docs` (ver README, *Documentación de la API*).
+
 ---
 
 ## 1. Convenciones
@@ -98,7 +101,7 @@ Los listados aceptan `?page=1&pageSize=10` y responden:
 |---|---|---|---|---|
 | 1 | `POST` | `/api/v1/auth/register` | — | CU-01 |
 | 2 | `POST` | `/api/v1/auth/login` | — | CU-02 |
-| 3 | `POST` | `/api/v1/auth/logout` | `AUTH` | CU-03 |
+| 3 | `POST` | `/api/v1/auth/logout` | — | CU-03 |
 | 4 | `GET` | `/api/v1/auth/me` | `AUTH` | CU-02 |
 | 5 | `GET` | `/api/v1/profile` | `AUTH` | CU-04 |
 | 6 | `PATCH` | `/api/v1/profile` | `AUTH` | CU-04 |
@@ -190,7 +193,8 @@ o la cuenta está desactivada.
 
 ### 3. `POST /api/v1/auth/logout`
 
-**204** — borra la cookie.
+**204** — borra la cookie. No exige sesión: cerrar sesión nunca falla, aunque la cookie ya haya
+vencido.
 
 ### 4. `GET /api/v1/auth/me`
 

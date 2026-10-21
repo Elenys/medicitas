@@ -41,6 +41,22 @@ Contraseña de todas: **`Medicitas2026`**
 El guion de demostración de 20 pasos está en
 [`especificacion/08-pruebas-y-datos-semilla.md`](especificacion/08-pruebas-y-datos-semilla.md#5-guion-de-demostración).
 
+## Documentación de la API
+
+- **Interactiva:** http://localhost:3000/api/docs (Swagger UI). Con la sesión iniciada en MediCitas,
+  *Try it out* llama a la API real con esa sesión.
+- **Especificación OpenAPI 3.1:** [`especificacion/openapi.json`](especificacion/openapi.json), también
+  en http://localhost:3000/api/docs/openapi.json (se puede importar en Postman).
+
+Se genera, no se escribe a mano. `scripts/openapi/catalogo.ts` enlaza los 30 endpoints con los
+esquemas Zod que valida cada uno; `verificar.ts` recorre la API real (65 llamadas, éxitos y errores)
+y guarda las respuestas como ejemplos; `generar.ts` arma la especificación:
+
+```bash
+API_URL=http://localhost:3000 npm run api:verificar   # modifica datos: úsela con una base de pruebas
+npm run api:docs
+```
+
 ## Desarrollo local (sin contenedor para la aplicación)
 
 Requisitos: Node.js 22+ y Docker para la base de datos.
