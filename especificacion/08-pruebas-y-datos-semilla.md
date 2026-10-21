@@ -107,13 +107,17 @@ cancelación demasiado corto.
 
 Contra una base de datos PostgreSQL real (`medicitas_test`), que se limpia entre pruebas.
 
-> **Estado tras la construcción.** Se automatizaron §3.1 (restricciones, 8 casos) y §3.3
-> (concurrencia) en `tests/integration/constraints.test.ts`; se ejecutan con
-> `npm run test:integration` y crean y migran `medicitas_test` por sí solas. Los recorridos de
-> §3.2 (reserva completa) y §3.4 (autorización) **no están automatizados**: se verificaron a
-> mano contra la aplicación en Docker —reserva, `409 SLOT_TAKEN` para el mismo cupo, `401` sin
-> sesión, `403` con rol equivocado, cuenta inactiva sin distinguir causa— y quedan como trabajo
-> pendiente de automatización.
+> **Estado tras la construcción.** Automatizadas con `npm run test:integration` (crean y migran
+> `medicitas_test` por sí solas):
+> - §3.1 restricciones y §3.3 concurrencia en el motor — `tests/integration/constraints.test.ts`;
+> - §3.2 recorrido completo de la reserva y §3.3 concurrencia a través del servicio de citas —
+>   `tests/integration/booking.test.ts`;
+> - una prueba por módulo (autenticación y perfil, catálogo y disponibilidad, horarios,
+>   administración de usuarios, notificaciones, panel y reportes) — `tests/integration/modules.test.ts`.
+>
+> §3.4 (autorización por HTTP: 401 sin sesión, 403 con rol equivocado o recurso ajeno, sin
+> `passwordHash` en las respuestas) se automatizó en la colección de Postman `postman/` (63
+> peticiones, 205 verificaciones), que se ejecuta contra la aplicación en marcha.
 
 ### 3.1 `tests/integration/constraints.test.ts`
 
