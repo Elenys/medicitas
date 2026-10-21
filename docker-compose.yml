@@ -1,0 +1,60 @@
+# MediCitas — entorno completo con un solo comando:
+#   docker compose up --build
+#
+#   db      → PostgreSQL 16
+#   migrate → aplica las migraciones y carga los datos de demostración; termina
+#   app     → la aplicación, en http://localhost:3000
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: medicitas-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: medicitas
+      POSTGRES_PASSWORD: medicitas
+      POSTGRES_DB: medicitas
+    ports:
+      - '5432:5432'
+    volumes:
+      - medicitas-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U medicitas -d medicitas']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      target: builder
+    container_name: medicitas-migrate
+    environment:
+      DATABASE_URL: postgresql://medicitas:medicitas@db:5432/medicitas?schema=public
+      JWT_SECRET: ${JWT_SECRET:-clave-de-desarrollo-cambiela-en-produccion-32chars}
+    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: runner
+    container_name: medicitas-app
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://medicitas:medicitas@db:5432/medicitas?schema=public
+      JWT_SECRET: ${JWT_SECRET:-clave-de-desarrollo-cambiela-en-produccion-32chars}
+      NEXT_PUBLIC_APP_NAME: MediCitas
+      NEXT_PUBLIC_APP_VERSION: 1.0.0
+    ports:
+      - '3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  medicitas-data:
