@@ -57,6 +57,22 @@ API_URL=http://localhost:3000 npm run api:verificar   # modifica datos: úsela c
 npm run api:docs
 ```
 
+## Pruebas de la API con Postman
+
+`postman/` tiene la colección `medicitas-api.postman_collection.json` (63 peticiones, 205
+verificaciones, los 30 servicios) y el entorno `medicitas-local.postman_environment.json`.
+Cada carpeta inicia sesión con su rol (paciente, médico, administrador) y las variables encadenan
+los datos reales: médico, cupo, cita, notificación y usuario creado.
+
+1. `docker compose up --build` y, para partir de los datos de demostración,
+   `docker compose run --rm -e SEED_FORCE=1 migrate`.
+2. Postman → **Import** → los dos archivos de `postman/` → entorno *MediCitas local (puerto 3000)*.
+3. Clic derecho en la colección → **Run collection** → **Run**.
+
+Sin abrir Postman: `npx newman run postman/medicitas-api.postman_collection.json -e postman/medicitas-local.postman_environment.json`.
+La colección registra datos nuevos en cada ejecución (con un sufijo único) y gasta una de las tres
+citas pasadas de la demo; tras tres ejecuciones hay que reiniciar la demo como en el paso 1.
+
 ## Desarrollo local (sin contenedor para la aplicación)
 
 Requisitos: Node.js 22+ y Docker para la base de datos.
