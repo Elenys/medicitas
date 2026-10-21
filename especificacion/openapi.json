@@ -1,0 +1,4350 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API de MediCitas",
+    "version": "1.0.0",
+    "description": "Servicios web REST del sistema de citas médicas MediCitas (Next.js Route Handlers, `/api/v1`).\n\n- Peticiones y respuestas en JSON. Fechas con hora en ISO-8601 con zona; fechas sin hora como `AAAA-MM-DD` (zona America/Bogota).\n- **Sesión:** `POST /api/v1/auth/login` devuelve la cookie httpOnly `medicitas_session` (JWT). Las demás peticiones la envían de vuelta; no se usa la cabecera Authorization.\n- **Errores:** siempre `{ \"error\": { \"code\", \"message\", \"details?\" } }`, con el mensaje en español para el usuario final.\n- **Listados paginados:** `?page=1&pageSize=10` (máximo 50) y respuesta `{ items, page, pageSize, total, totalPages }`.\n\nLos esquemas de entrada se generan de los mismos esquemas Zod que valida la API, y los ejemplos son respuestas reales de la API con los datos de demostración."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "El mismo servidor que muestra esta documentación"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Docker Compose local"
+    }
+  ],
+  "security": [
+    {
+      "sesion": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Autenticación",
+      "description": "Registro de pacientes, inicio y cierre de sesión. La sesión es un JWT en la cookie httpOnly `medicitas_session`."
+    },
+    {
+      "name": "Perfil",
+      "description": "Datos y contraseña del usuario de la sesión."
+    },
+    {
+      "name": "Catálogos y disponibilidad",
+      "description": "Especialidades, médicos y cupos libres para agendar."
+    },
+    {
+      "name": "Horarios del médico",
+      "description": "Franjas semanales de atención y duración de la consulta del médico de la sesión."
+    },
+    {
+      "name": "Citas",
+      "description": "Agendar, consultar, confirmar, cancelar y atender citas. El alcance depende del rol."
+    },
+    {
+      "name": "Administración de usuarios",
+      "description": "Gestión de médicos y administradores (solo administrador)."
+    },
+    {
+      "name": "Notificaciones",
+      "description": "Avisos internos del usuario de la sesión."
+    },
+    {
+      "name": "Panel y reportes",
+      "description": "Indicadores del panel según el rol y reporte de citas por especialidad."
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "e01",
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "1. Registrar paciente",
+        "description": "Crea el usuario con rol PATIENT y su registro de paciente en una sola transacción, emite la cookie de sesión y devuelve el usuario (CU-01). La contraseña cumple RN-04: mínimo 8 caracteres con minúscula, mayúscula y dígito.\n\n**Permiso:** Público (no requiere sesión).",
+        "x-permiso": "PUBLICO",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "documentType": {
+                    "type": "string",
+                    "enum": [
+                      "CC",
+                      "TI",
+                      "CE",
+                      "PA"
+                    ]
+                  },
+                  "documentNumber": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9]{5,20}$"
+                  },
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 150,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "phone": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d{7,15}$"
+                      },
+                      {
+                        "type": "string",
+                        "const": ""
+                      }
+                    ]
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "allOf": [
+                      {
+                        "pattern": "[a-z]"
+                      },
+                      {
+                        "pattern": "[A-Z]"
+                      },
+                      {
+                        "pattern": "\\d"
+                      }
+                    ]
+                  },
+                  "birthDate": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "gender": {
+                    "type": "string",
+                    "enum": [
+                      "FEMALE",
+                      "MALE",
+                      "OTHER"
+                    ]
+                  },
+                  "address": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "string",
+                        "const": ""
+                      }
+                    ]
+                  },
+                  "healthProvider": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "string",
+                        "const": ""
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "documentType",
+                  "documentNumber",
+                  "firstName",
+                  "lastName",
+                  "email",
+                  "password",
+                  "birthDate",
+                  "gender"
+                ]
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Registro de un paciente nuevo",
+                  "value": {
+                    "documentType": "CC",
+                    "documentNumber": "1045678912",
+                    "firstName": "Sofía",
+                    "lastName": "Herrera",
+                    "email": "sofia.herrera@correo.com",
+                    "phone": "3004567890",
+                    "password": "Medicitas2026",
+                    "birthDate": "1998-06-14",
+                    "gender": "FEMALE",
+                    "address": "Calle 29 # 4-15, Montería",
+                    "healthProvider": "Nueva EPS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Registro de un paciente nuevo (PATIENT)",
+                    "value": {
+                      "id": 20,
+                      "role": "PATIENT",
+                      "firstName": "Sofía",
+                      "lastName": "Herrera",
+                      "email": "sofia.herrera@correo.com"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Datos inválidos (sin sesión)",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Revise los datos ingresados.",
+                        "details": [
+                          {
+                            "field": "documentType",
+                            "message": "Seleccione el tipo de documento"
+                          },
+                          {
+                            "field": "documentNumber",
+                            "message": "Invalid input: expected string, received undefined"
+                          },
+                          {
+                            "field": "firstName",
+                            "message": "Invalid input: expected string, received undefined"
+                          },
+                          {
+                            "field": "lastName",
+                            "message": "Invalid input: expected string, received undefined"
+                          },
+                          {
+                            "field": "email",
+                            "message": "Ingrese un correo válido"
+                          },
+                          {
+                            "field": "password",
+                            "message": "La contraseña debe tener al menos 8 caracteres"
+                          },
+                          {
+                            "field": "password",
+                            "message": "Debe incluir al menos una mayúscula"
+                          },
+                          {
+                            "field": "password",
+                            "message": "Debe incluir al menos un dígito"
+                          },
+                          {
+                            "field": "birthDate",
+                            "message": "Invalid input: expected string, received undefined"
+                          },
+                          {
+                            "field": "gender",
+                            "message": "Seleccione el género"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con el estado actual de los datos. Códigos: EMAIL_ALREADY_EXISTS, DOCUMENT_ALREADY_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Correo ya registrado (sin sesión)",
+                    "value": {
+                      "error": {
+                        "code": "EMAIL_ALREADY_EXISTS",
+                        "message": "Ya existe una cuenta con ese correo."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "e02",
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "2. Iniciar sesión",
+        "description": "Verifica correo y contraseña, emite la cookie de sesión y devuelve el usuario (CU-02). El error no distingue si el correo no existe, si la contraseña es incorrecta o si la cuenta está desactivada.\n\n**Permiso:** Público (no requiere sesión).",
+        "x-permiso": "PUBLICO",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 150,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ]
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Inicio de sesión (ADMIN)",
+                  "value": {
+                    "email": "admin@medicitas.com",
+                    "password": "Medicitas2026"
+                  }
+                },
+                "ej2": {
+                  "summary": "Inicio de sesión (DOCTOR)",
+                  "value": {
+                    "email": "andres.ramirez@medicitas.com",
+                    "password": "Medicitas2026"
+                  }
+                },
+                "ej3": {
+                  "summary": "Inicio de sesión (DOCTOR)",
+                  "value": {
+                    "email": "laura.medina@medicitas.com",
+                    "password": "Medicitas2026"
+                  }
+                },
+                "ej4": {
+                  "summary": "Inicio de sesión (PATIENT)",
+                  "value": {
+                    "email": "paciente@correo.com",
+                    "password": "Medicitas2026"
+                  }
+                },
+                "ej5": {
+                  "summary": "Inicio de sesión (PATIENT)",
+                  "value": {
+                    "email": "sofia.herrera@correo.com",
+                    "password": "Medicitas2026"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Inicio de sesión (ADMIN)",
+                    "value": {
+                      "id": 1,
+                      "role": "ADMIN",
+                      "firstName": "Carlas",
+                      "lastName": "Montalvo",
+                      "email": "admin@medicitas.com"
+                    }
+                  },
+                  "ej2": {
+                    "summary": "Inicio de sesión (DOCTOR)",
+                    "value": {
+                      "id": 4,
+                      "role": "DOCTOR",
+                      "firstName": "Andrés",
+                      "lastName": "Ramírez",
+                      "email": "andres.ramirez@medicitas.com"
+                    }
+                  },
+                  "ej3": {
+                    "summary": "Inicio de sesión (DOCTOR)",
+                    "value": {
+                      "id": 3,
+                      "role": "DOCTOR",
+                      "firstName": "Laura",
+                      "lastName": "Medina",
+                      "email": "laura.medina@medicitas.com"
+                    }
+                  },
+                  "ej4": {
+                    "summary": "Inicio de sesión (PATIENT)",
+                    "value": {
+                      "id": 9,
+                      "role": "PATIENT",
+                      "firstName": "Sofía",
+                      "lastName": "Herrera",
+                      "email": "paciente@correo.com"
+                    }
+                  },
+                  "ej5": {
+                    "summary": "Inicio de sesión (PATIENT)",
+                    "value": {
+                      "id": 20,
+                      "role": "PATIENT",
+                      "firstName": "Sofía",
+                      "lastName": "Herrera",
+                      "email": "sofia.herrera@correo.com"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: INVALID_CREDENTIALS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Contraseña incorrecta (sin sesión)",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_CREDENTIALS",
+                        "message": "Correo o contraseña incorrectos."
+                      }
+                    }
+                  },
+                  "ej2": {
+                    "summary": "Cuenta desactivada (sin sesión)",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_CREDENTIALS",
+                        "message": "Correo o contraseña incorrectos."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "e03",
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "3. Cerrar sesión",
+        "description": "Borra la cookie de sesión (CU-03). No falla si no había sesión.\n\n**Permiso:** Público (no requiere sesión).",
+        "x-permiso": "PUBLICO",
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "Operación exitosa, sin contenido"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "e04",
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "4. Usuario de la sesión",
+        "description": "Devuelve el usuario de la sesión con su perfil de paciente o de médico según el rol.\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Usuario de la sesión (paciente) (PATIENT)",
+                    "value": {
+                      "id": 20,
+                      "role": "PATIENT",
+                      "firstName": "Sofía",
+                      "lastName": "Herrera",
+                      "email": "sofia.herrera@correo.com",
+                      "documentType": "CC",
+                      "documentNumber": "1045678912",
+                      "phone": "3004567890",
+                      "isActive": true,
+                      "patient": {
+                        "id": 12,
+                        "birthDate": "1998-06-14",
+                        "gender": "FEMALE",
+                        "address": "Calle 29 # 4-15, Montería",
+                        "healthProvider": "Nueva EPS"
+                      },
+                      "doctor": null
+                    }
+                  },
+                  "ej2": {
+                    "summary": "Usuario de la sesión (médico) (DOCTOR)",
+                    "value": {
+                      "id": 4,
+                      "role": "DOCTOR",
+                      "firstName": "Andrés",
+                      "lastName": "Ramírez",
+                      "email": "andres.ramirez@medicitas.com",
+                      "documentType": "CC",
+                      "documentNumber": "79456123",
+                      "phone": "3100000000",
+                      "isActive": true,
+                      "patient": null,
+                      "doctor": {
+                        "id": 2,
+                        "specialty": {
+                          "id": 2,
+                          "name": "Pediatría"
+                        },
+                        "licenseNumber": "RM-45871",
+                        "appointmentDurationMinutes": 20
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Sin sesión (sin sesión)",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Su sesión ha expirado. Inicie sesión nuevamente."
+                      }
+                    }
+                  },
+                  "ej2": {
+                    "summary": "Después de cerrar sesión (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "UNAUTHENTICATED",
+                        "message": "Su sesión ha expirado. Inicie sesión nuevamente."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profile": {
+      "get": {
+        "operationId": "e05",
+        "tags": [
+          "Perfil"
+        ],
+        "summary": "5. Consultar perfil",
+        "description": "Datos completos del usuario autenticado, con su perfil de paciente o de médico (CU-04).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Perfil del paciente (PATIENT)",
+                    "value": {
+                      "id": 20,
+                      "role": "PATIENT",
+                      "firstName": "Sofía",
+                      "lastName": "Herrera",
+                      "email": "sofia.herrera@correo.com",
+                      "documentType": "CC",
+                      "documentNumber": "1045678912",
+                      "phone": "3004567890",
+                      "isActive": true,
+                      "patient": {
+                        "id": 12,
+                        "birthDate": "1998-06-14",
+                        "gender": "FEMALE",
+                        "address": "Calle 29 # 4-15, Montería",
+                        "healthProvider": "Nueva EPS"
+                      },
+                      "doctor": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "e06",
+        "tags": [
+          "Perfil"
+        ],
+        "summary": "6. Editar perfil",
+        "description": "Todos pueden editar firstName, lastName y phone; el paciente además address y healthProvider; el médico además appointmentDurationMinutes. El correo y el documento no son editables: enviarlos produce 400.\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60
+                  },
+                  "phone": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d{7,15}$"
+                      },
+                      {
+                        "type": "string",
+                        "const": ""
+                      }
+                    ]
+                  },
+                  "address": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "string",
+                        "const": ""
+                      }
+                    ]
+                  },
+                  "healthProvider": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "string",
+                        "const": ""
+                      }
+                    ]
+                  },
+                  "appointmentDurationMinutes": {
+                    "type": "integer",
+                    "minimum": 10,
+                    "maximum": 120
+                  }
+                },
+                "additionalProperties": false
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Actualizar teléfono y EPS",
+                  "value": {
+                    "phone": "3017654321",
+                    "healthProvider": "Sura EPS"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Actualizar teléfono y EPS (PATIENT)",
+                    "value": {
+                      "id": 20,
+                      "role": "PATIENT",
+                      "firstName": "Sofía",
+                      "lastName": "Herrera",
+                      "email": "sofia.herrera@correo.com",
+                      "documentType": "CC",
+                      "documentNumber": "1045678912",
+                      "phone": "3017654321",
+                      "isActive": true,
+                      "patient": {
+                        "id": 12,
+                        "birthDate": "1998-06-14",
+                        "gender": "FEMALE",
+                        "address": "Calle 29 # 4-15, Montería",
+                        "healthProvider": "Sura EPS"
+                      },
+                      "doctor": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "El correo no es editable (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Revise los datos ingresados.",
+                        "details": [
+                          {
+                            "field": "",
+                            "message": "Unrecognized key: \"email\""
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/profile/password": {
+      "patch": {
+        "operationId": "e07",
+        "tags": [
+          "Perfil"
+        ],
+        "summary": "7. Cambiar contraseña",
+        "description": "Cambia la contraseña del usuario de la sesión (CU-05). La nueva cumple RN-04 y debe ser distinta de la actual.\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "currentPassword": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 8,
+                    "allOf": [
+                      {
+                        "pattern": "[a-z]"
+                      },
+                      {
+                        "pattern": "[A-Z]"
+                      },
+                      {
+                        "pattern": "\\d"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "currentPassword",
+                  "newPassword"
+                ]
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Cambiar contraseña",
+                  "value": {
+                    "currentPassword": "Medicitas2026",
+                    "newPassword": "Medicitas2027"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Operación exitosa, sin contenido"
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED, INVALID_CREDENTIALS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Contraseña actual incorrecta (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_CREDENTIALS",
+                        "message": "Correo o contraseña incorrectos."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/specialties": {
+      "get": {
+        "operationId": "e08",
+        "tags": [
+          "Catálogos y disponibilidad"
+        ],
+        "summary": "8. Listar especialidades",
+        "description": "Catálogo completo de especialidades, ordenado por nombre y sin paginar (CU-06).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Especialidades (PATIENT)",
+                    "value": [
+                      {
+                        "id": 4,
+                        "name": "Cardiología",
+                        "description": "Enfermedades del corazón y sistema circulatorio"
+                      },
+                      {
+                        "id": 5,
+                        "name": "Dermatología",
+                        "description": "Enfermedades de la piel"
+                      },
+                      {
+                        "id": 3,
+                        "name": "Ginecología",
+                        "description": "Salud femenina y reproductiva"
+                      },
+                      {
+                        "id": 1,
+                        "name": "Medicina General",
+                        "description": "Atención primaria y valoración inicial"
+                      },
+                      {
+                        "id": 2,
+                        "name": "Pediatría",
+                        "description": "Atención de niños y adolescentes"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/doctors": {
+      "get": {
+        "operationId": "e09",
+        "tags": [
+          "Catálogos y disponibilidad"
+        ],
+        "summary": "9. Listar médicos",
+        "description": "Médicos activos con al menos una franja configurada (RN-16), con la primera fecha que tiene cupo libre. Filtro opcional por especialidad. Respuesta paginada (CU-07).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "specialtyId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Médicos de Pediatría (PATIENT)",
+                    "value": {
+                      "items": [
+                        {
+                          "id": 2,
+                          "fullName": "Andrés Ramírez",
+                          "specialty": {
+                            "id": 2,
+                            "name": "Pediatría"
+                          },
+                          "appointmentDurationMinutes": 20,
+                          "nextAvailableDate": "2026-10-23"
+                        }
+                      ],
+                      "page": 1,
+                      "pageSize": 10,
+                      "total": 1,
+                      "totalPages": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/doctors/{id}": {
+      "get": {
+        "operationId": "e10",
+        "tags": [
+          "Catálogos y disponibilidad"
+        ],
+        "summary": "10. Detalle de médico",
+        "description": "Datos del médico con sus franjas de atención (CU-07).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Detalle del médico (PATIENT)",
+                    "value": {
+                      "id": 2,
+                      "userId": 4,
+                      "fullName": "Andrés Ramírez",
+                      "specialty": {
+                        "id": 2,
+                        "name": "Pediatría"
+                      },
+                      "durationMinutes": 20,
+                      "schedules": [
+                        {
+                          "weekday": 1,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        },
+                        {
+                          "weekday": 3,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        },
+                        {
+                          "weekday": 5,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Médico inexistente (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "El médico no existe."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/doctors/{id}/availability": {
+      "get": {
+        "operationId": "e11",
+        "tags": [
+          "Catálogos y disponibilidad"
+        ],
+        "summary": "11. Disponibilidad del mes",
+        "description": "Cupos libres por día del mes indicado, dentro de la ventana de RN-14 y RN-15. Alimenta el calendario del asistente para agendar (CU-08).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Disponibilidad de 2026-10 (PATIENT)",
+                    "value": {
+                      "month": "2026-10",
+                      "days": [
+                        {
+                          "date": "2026-10-21",
+                          "availableSlots": 0
+                        },
+                        {
+                          "date": "2026-10-22",
+                          "availableSlots": 0
+                        },
+                        {
+                          "date": "2026-10-23",
+                          "availableSlots": 11
+                        },
+                        {
+                          "date": "2026-10-24",
+                          "availableSlots": 0
+                        },
+                        {
+                          "date": "2026-10-25",
+                          "availableSlots": 0
+                        },
+                        {
+                          "date": "2026-10-26",
+                          "availableSlots": 11
+                        },
+                        {
+                          "date": "2026-10-27",
+                          "availableSlots": 0
+                        },
+                        {
+                          "date": "2026-10-28",
+                          "availableSlots": 12
+                        },
+                        {
+                          "date": "2026-10-29",
+                          "availableSlots": 0
+                        },
+                        {
+                          "date": "2026-10-30",
+                          "availableSlots": 11
+                        },
+                        {
+                          "date": "2026-10-31",
+                          "availableSlots": 0
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Mes con formato inválido (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Revise los datos ingresados.",
+                        "details": [
+                          {
+                            "field": "month",
+                            "message": "El mes debe tener el formato AAAA-MM"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/doctors/{id}/available-slots": {
+      "get": {
+        "operationId": "e12",
+        "tags": [
+          "Catálogos y disponibilidad"
+        ],
+        "summary": "12. Cupos de un día",
+        "description": "Todos los cupos de la jornada del médico en la fecha indicada, marcando cuáles están libres (CU-09).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Cupos del día (PATIENT)",
+                    "value": {
+                      "date": "2026-10-23",
+                      "durationMinutes": 20,
+                      "slots": [
+                        {
+                          "startsAt": "2026-10-23T13:00:00.000Z",
+                          "endsAt": "2026-10-23T13:20:00.000Z",
+                          "available": false
+                        },
+                        {
+                          "startsAt": "2026-10-23T13:20:00.000Z",
+                          "endsAt": "2026-10-23T13:40:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T13:40:00.000Z",
+                          "endsAt": "2026-10-23T14:00:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T14:00:00.000Z",
+                          "endsAt": "2026-10-23T14:20:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T14:20:00.000Z",
+                          "endsAt": "2026-10-23T14:40:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T14:40:00.000Z",
+                          "endsAt": "2026-10-23T15:00:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T15:00:00.000Z",
+                          "endsAt": "2026-10-23T15:20:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T15:20:00.000Z",
+                          "endsAt": "2026-10-23T15:40:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T15:40:00.000Z",
+                          "endsAt": "2026-10-23T16:00:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T16:00:00.000Z",
+                          "endsAt": "2026-10-23T16:20:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T16:20:00.000Z",
+                          "endsAt": "2026-10-23T16:40:00.000Z",
+                          "available": true
+                        },
+                        {
+                          "startsAt": "2026-10-23T16:40:00.000Z",
+                          "endsAt": "2026-10-23T17:00:00.000Z",
+                          "available": true
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/doctors/me/schedules": {
+      "get": {
+        "operationId": "e13",
+        "tags": [
+          "Horarios del médico"
+        ],
+        "summary": "13. Consultar mis franjas",
+        "description": "Franjas semanales y duración de la consulta del médico de la sesión (CU-15). weekday: 1 = lunes … 7 = domingo.\n\n**Permiso:** Solo médico.",
+        "x-permiso": "DOCTOR",
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Franjas del médico (DOCTOR)",
+                    "value": {
+                      "appointmentDurationMinutes": 20,
+                      "schedules": [
+                        {
+                          "weekday": 1,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        },
+                        {
+                          "weekday": 3,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        },
+                        {
+                          "weekday": 5,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        }
+                      ],
+                      "weeklySlots": 36
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Un paciente no tiene franjas (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "No tiene permiso para realizar esta acción."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "e14",
+        "tags": [
+          "Horarios del médico"
+        ],
+        "summary": "14. Reemplazar mis franjas",
+        "description": "Reemplaza el conjunto completo de franjas (RN-11: fin posterior al inicio; RN-12: sin solapamientos). Si hay citas futuras que quedan fuera de la nueva jornada se devuelve una advertencia; esas citas no se cancelan ni se mueven (RN-17).\n\n**Permiso:** Solo médico.",
+        "x-permiso": "DOCTOR",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "schedules": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "weekday": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 7
+                        },
+                        "startTime": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        },
+                        "endTime": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+                        }
+                      },
+                      "required": [
+                        "weekday",
+                        "startTime",
+                        "endTime"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "schedules"
+                ]
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Guardar las franjas de la semana",
+                  "value": {
+                    "schedules": [
+                      {
+                        "weekday": 1,
+                        "startTime": "08:00",
+                        "endTime": "12:00"
+                      },
+                      {
+                        "weekday": 3,
+                        "startTime": "08:00",
+                        "endTime": "12:00"
+                      },
+                      {
+                        "weekday": 5,
+                        "startTime": "08:00",
+                        "endTime": "12:00"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Guardar las franjas de la semana (DOCTOR)",
+                    "value": {
+                      "appointmentDurationMinutes": 20,
+                      "schedules": [
+                        {
+                          "weekday": 1,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        },
+                        {
+                          "weekday": 3,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        },
+                        {
+                          "weekday": 5,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        }
+                      ],
+                      "weeklySlots": 36
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con el estado actual de los datos. Códigos: SCHEDULE_OVERLAP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Franjas solapadas (DOCTOR)",
+                    "value": {
+                      "error": {
+                        "code": "SCHEDULE_OVERLAP",
+                        "message": "Dos franjas del mismo día se solapan. Corríjalas."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/doctors/me": {
+      "patch": {
+        "operationId": "e15",
+        "tags": [
+          "Horarios del médico"
+        ],
+        "summary": "15. Cambiar duración de la consulta",
+        "description": "Duración entre 10 y 120 minutos (RN-09). No altera las citas ya agendadas; solo los cupos que se generen desde ese momento.\n\n**Permiso:** Solo médico.",
+        "x-permiso": "DOCTOR",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appointmentDurationMinutes": {
+                    "type": "integer",
+                    "minimum": 10,
+                    "maximum": 120
+                  }
+                },
+                "required": [
+                  "appointmentDurationMinutes"
+                ]
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Duración de la consulta",
+                  "value": {
+                    "appointmentDurationMinutes": 20
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Duración de la consulta (DOCTOR)",
+                    "value": {
+                      "appointmentDurationMinutes": 20,
+                      "schedules": [
+                        {
+                          "weekday": 1,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        },
+                        {
+                          "weekday": 3,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        },
+                        {
+                          "weekday": 5,
+                          "startTime": "08:00",
+                          "endTime": "12:00"
+                        }
+                      ],
+                      "weeklySlots": 36
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Duración fuera de rango (DOCTOR)",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Revise los datos ingresados.",
+                        "details": [
+                          {
+                            "field": "appointmentDurationMinutes",
+                            "message": "Mínimo 10 minutos"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/appointments": {
+      "get": {
+        "operationId": "e16",
+        "tags": [
+          "Citas"
+        ],
+        "summary": "16. Listar citas",
+        "description": "El paciente ve solo sus citas, el médico solo las suyas y el administrador todas (RN-28 a RN-30). Cada cita trae canConfirm, canCancel y canComplete calculados por el servidor. doctorId y patientId solo los usa el administrador. Respuesta paginada (CU-13, CU-16, CU-24).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "upcoming",
+                "history"
+              ]
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BOOKED",
+                "CONFIRMED",
+                "COMPLETED",
+                "CANCELLED"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "doctorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "patientId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "includeCancelled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Próximas citas del paciente (PATIENT)",
+                    "value": {
+                      "items": [
+                        {
+                          "id": 43,
+                          "startsAt": "2026-10-23T13:20:00.000Z",
+                          "endsAt": "2026-10-23T13:40:00.000Z",
+                          "status": "BOOKED",
+                          "reason": "Control de crecimiento",
+                          "notes": null,
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:21.017Z",
+                          "patient": {
+                            "id": 12,
+                            "fullName": "Sofía Herrera"
+                          },
+                          "doctor": {
+                            "id": 2,
+                            "fullName": "Andrés Ramírez",
+                            "specialty": "Pediatría",
+                            "appointmentDurationMinutes": 20
+                          },
+                          "canConfirm": true,
+                          "canCancel": true,
+                          "canComplete": false
+                        }
+                      ],
+                      "page": 1,
+                      "pageSize": 10,
+                      "total": 1,
+                      "totalPages": 1
+                    }
+                  },
+                  "ej2": {
+                    "summary": "Agenda del día del médico (DOCTOR)",
+                    "value": {
+                      "items": [
+                        {
+                          "id": 1,
+                          "startsAt": "2026-10-23T13:00:00.000Z",
+                          "endsAt": "2026-10-23T13:20:00.000Z",
+                          "status": "BOOKED",
+                          "reason": "Control de rutina",
+                          "notes": null,
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:19.521Z",
+                          "patient": {
+                            "id": 1,
+                            "fullName": "Sofía Herrera",
+                            "documentType": "CC",
+                            "documentNumber": "1098765432",
+                            "phone": "3001234567",
+                            "birthDate": "1995-04-17",
+                            "gender": "FEMALE"
+                          },
+                          "doctor": {
+                            "id": 2,
+                            "fullName": "Andrés Ramírez",
+                            "specialty": "Pediatría",
+                            "appointmentDurationMinutes": 20
+                          },
+                          "canConfirm": false,
+                          "canCancel": true,
+                          "canComplete": false
+                        },
+                        {
+                          "id": 43,
+                          "startsAt": "2026-10-23T13:20:00.000Z",
+                          "endsAt": "2026-10-23T13:40:00.000Z",
+                          "status": "BOOKED",
+                          "reason": "Control de crecimiento",
+                          "notes": null,
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:21.017Z",
+                          "patient": {
+                            "id": 12,
+                            "fullName": "Sofía Herrera",
+                            "documentType": "CC",
+                            "documentNumber": "1045678912",
+                            "phone": "3017654321",
+                            "birthDate": "1998-06-14",
+                            "gender": "FEMALE"
+                          },
+                          "doctor": {
+                            "id": 2,
+                            "fullName": "Andrés Ramírez",
+                            "specialty": "Pediatría",
+                            "appointmentDurationMinutes": 20
+                          },
+                          "canConfirm": false,
+                          "canCancel": true,
+                          "canComplete": false
+                        }
+                      ],
+                      "page": 1,
+                      "pageSize": 10,
+                      "total": 2,
+                      "totalPages": 1
+                    }
+                  },
+                  "ej3": {
+                    "summary": "Próximas citas (paciente de demostración) (PATIENT)",
+                    "value": {
+                      "items": [
+                        {
+                          "id": 8,
+                          "startsAt": "2026-10-21T19:00:00.000Z",
+                          "endsAt": "2026-10-21T19:30:00.000Z",
+                          "status": "BOOKED",
+                          "reason": "Molestias digestivas",
+                          "notes": null,
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:19.535Z",
+                          "patient": {
+                            "id": 1,
+                            "fullName": "Sofía Herrera"
+                          },
+                          "doctor": {
+                            "id": 1,
+                            "fullName": "Laura Medina",
+                            "specialty": "Medicina General",
+                            "appointmentDurationMinutes": 30
+                          },
+                          "canConfirm": true,
+                          "canCancel": false,
+                          "canComplete": false
+                        },
+                        {
+                          "id": 1,
+                          "startsAt": "2026-10-23T13:00:00.000Z",
+                          "endsAt": "2026-10-23T13:20:00.000Z",
+                          "status": "BOOKED",
+                          "reason": "Control de rutina",
+                          "notes": null,
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:19.521Z",
+                          "patient": {
+                            "id": 1,
+                            "fullName": "Sofía Herrera"
+                          },
+                          "doctor": {
+                            "id": 2,
+                            "fullName": "Andrés Ramírez",
+                            "specialty": "Pediatría",
+                            "appointmentDurationMinutes": 20
+                          },
+                          "canConfirm": true,
+                          "canCancel": true,
+                          "canComplete": false
+                        },
+                        {
+                          "id": 2,
+                          "startsAt": "2026-10-28T19:00:00.000Z",
+                          "endsAt": "2026-10-28T19:30:00.000Z",
+                          "status": "CONFIRMED",
+                          "reason": "Dolor en el pecho al caminar",
+                          "notes": null,
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:19.525Z",
+                          "patient": {
+                            "id": 1,
+                            "fullName": "Sofía Herrera"
+                          },
+                          "doctor": {
+                            "id": 4,
+                            "fullName": "Jorge Salazar",
+                            "specialty": "Cardiología",
+                            "appointmentDurationMinutes": 30
+                          },
+                          "canConfirm": false,
+                          "canCancel": true,
+                          "canComplete": false
+                        }
+                      ],
+                      "page": 1,
+                      "pageSize": 50,
+                      "total": 3,
+                      "totalPages": 1
+                    }
+                  },
+                  "ej4": {
+                    "summary": "Historial de la médica (DOCTOR)",
+                    "value": {
+                      "items": [
+                        {
+                          "id": 11,
+                          "startsAt": "2026-10-20T12:30:00.000Z",
+                          "endsAt": "2026-10-20T13:00:00.000Z",
+                          "status": "BOOKED",
+                          "reason": "Consulta de seguimiento",
+                          "notes": null,
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:19.541Z",
+                          "patient": {
+                            "id": 4,
+                            "fullName": "Ana Rodríguez",
+                            "documentType": "CC",
+                            "documentNumber": "1034567890",
+                            "phone": "3012223344",
+                            "birthDate": "2001-01-15",
+                            "gender": "FEMALE"
+                          },
+                          "doctor": {
+                            "id": 1,
+                            "fullName": "Laura Medina",
+                            "specialty": "Medicina General",
+                            "appointmentDurationMinutes": 30
+                          },
+                          "canConfirm": false,
+                          "canCancel": true,
+                          "canComplete": true
+                        },
+                        {
+                          "id": 10,
+                          "startsAt": "2026-10-20T12:00:00.000Z",
+                          "endsAt": "2026-10-20T12:30:00.000Z",
+                          "status": "BOOKED",
+                          "reason": "Revisión de exámenes",
+                          "notes": null,
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:19.539Z",
+                          "patient": {
+                            "id": 3,
+                            "fullName": "Carlos Pérez",
+                            "documentType": "CC",
+                            "documentNumber": "1023456789",
+                            "phone": "3204567890",
+                            "birthDate": "1979-06-23",
+                            "gender": "MALE"
+                          },
+                          "doctor": {
+                            "id": 1,
+                            "fullName": "Laura Medina",
+                            "specialty": "Medicina General",
+                            "appointmentDurationMinutes": 30
+                          },
+                          "canConfirm": false,
+                          "canCancel": true,
+                          "canComplete": true
+                        },
+                        {
+                          "id": 3,
+                          "startsAt": "2026-10-16T12:00:00.000Z",
+                          "endsAt": "2026-10-16T12:30:00.000Z",
+                          "status": "COMPLETED",
+                          "reason": "Control de rutina",
+                          "notes": "Paciente estable. Se indica control en tres meses.",
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:19.527Z",
+                          "patient": {
+                            "id": 1,
+                            "fullName": "Sofía Herrera",
+                            "documentType": "CC",
+                            "documentNumber": "1098765432",
+                            "phone": "3001234567",
+                            "birthDate": "1995-04-17",
+                            "gender": "FEMALE"
+                          },
+                          "doctor": {
+                            "id": 1,
+                            "fullName": "Laura Medina",
+                            "specialty": "Medicina General",
+                            "appointmentDurationMinutes": 30
+                          },
+                          "canConfirm": false,
+                          "canCancel": false,
+                          "canComplete": false
+                        },
+                        {
+                          "id": 16,
+                          "startsAt": "2026-10-07T12:00:00.000Z",
+                          "endsAt": "2026-10-07T12:30:00.000Z",
+                          "status": "COMPLETED",
+                          "reason": "Dolor en el pecho al caminar",
+                          "notes": "Se formula tratamiento por 7 días y reposo.",
+                          "cancellationReason": null,
+                          "cancelledBy": null,
+                          "createdAt": "2026-10-21T17:24:19.550Z",
+                          "patient": {
+                            "id": 6,
+                            "fullName": "Valentina López",
+                            "documentType": "CC",
+                            "documentNumber": "1056789012",
+                            "phone": "3112233445",
+                            "birthDate": "2010-03-08",
+                            "gender": "FEMALE"
+                          },
+                          "doctor": {
+                            "id": 1,
+                            "fullName": "Laura Medina",
+                            "specialty": "Medicina General",
+                            "appointmentDurationMinutes": 30
+                          },
+                          "canConfirm": false,
+                          "canCancel": false,
+                          "canComplete": false
+                        },
+                        {
+                          "id": 24,
+                          "startsAt": "2026-10-06T12:00:00.000Z",
+                          "endsAt": "2026-10-06T12:30:00.000Z",
+                          "status": "CANCELLED",
+                          "reason": "Erupción en la piel",
+                          "notes": null,
+                          "cancellationReason": "El paciente ya fue atendido por urgencias",
+                          "cancelledBy": {
+                            "id": 16,
+                            "fullName": "Camila Torres",
+                            "role": "PATIENT"
+                          },
+                          "createdAt": "2026-10-21T17:24:19.564Z",
+                          "patient": {
+                            "id": 8,
+                            "fullName": "Camila Torres",
+                            "documentType": "CC",
+                            "documentNumber": "1078901234",
+                            "phone": "3134455667",
+                            "birthDate": "1992-07-19",
+                            "gender": "FEMALE"
+                          },
+                          "doctor": {
+                            "id": 1,
+                            "fullName": "Laura Medina",
+                            "specialty": "Medicina General",
+                            "appointmentDurationMinutes": 30
+                          },
+                          "canConfirm": false,
+                          "canCancel": false,
+                          "canComplete": false
+                        }
+                      ],
+                      "page": 1,
+                      "pageSize": 50,
+                      "total": 5,
+                      "totalPages": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "e17",
+        "tags": [
+          "Citas"
+        ],
+        "summary": "17. Agendar cita",
+        "description": "El paciente se toma de la sesión y la hora de fin la calcula el servidor con la duración del médico (RN-20, RN-21.4). startsAt debe ser el inicio de un cupo libre (CU-10).\n\n**Permiso:** Solo paciente.",
+        "x-permiso": "PATIENT",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "doctorId": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "reason": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      },
+                      {
+                        "type": "string",
+                        "const": ""
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "doctorId",
+                  "startsAt"
+                ]
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Agendar cita",
+                  "value": {
+                    "doctorId": 2,
+                    "startsAt": "2026-10-23T13:20:00.000Z",
+                    "reason": "Control de crecimiento"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Agendar cita (PATIENT)",
+                    "value": {
+                      "id": 43,
+                      "startsAt": "2026-10-23T13:20:00.000Z",
+                      "endsAt": "2026-10-23T13:40:00.000Z",
+                      "status": "BOOKED",
+                      "reason": "Control de crecimiento",
+                      "notes": null,
+                      "cancellationReason": null,
+                      "cancelledBy": null,
+                      "createdAt": "2026-10-21T17:24:21.017Z",
+                      "patient": {
+                        "id": 12,
+                        "fullName": "Sofía Herrera"
+                      },
+                      "doctor": {
+                        "id": 2,
+                        "fullName": "Andrés Ramírez",
+                        "specialty": "Pediatría",
+                        "appointmentDurationMinutes": 20
+                      },
+                      "canConfirm": true,
+                      "canCancel": true,
+                      "canComplete": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Un médico no agenda citas (DOCTOR)",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "No tiene permiso para realizar esta acción."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con el estado actual de los datos. Códigos: SLOT_TAKEN, PATIENT_APPOINTMENT_TOO_CLOSE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Cupo ya ocupado (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "SLOT_TAKEN",
+                        "message": "Ese horario acaba de ser reservado por otra persona. Elija otra franja."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/appointments/{id}": {
+      "get": {
+        "operationId": "e18",
+        "tags": [
+          "Citas"
+        ],
+        "summary": "18. Detalle de cita",
+        "description": "El paciente ve los datos del médico; el médico además los del paciente (RN-29); el administrador todo salvo las observaciones clínicas (RN-30) (CU-14).\n\n**Permiso:** Cualquier usuario con sesión, y el recurso debe pertenecer a quien lo pide.",
+        "x-permiso": "AUTH",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Detalle visto por el paciente (PATIENT)",
+                    "value": {
+                      "id": 43,
+                      "startsAt": "2026-10-23T13:20:00.000Z",
+                      "endsAt": "2026-10-23T13:40:00.000Z",
+                      "status": "BOOKED",
+                      "reason": "Control de crecimiento",
+                      "notes": null,
+                      "cancellationReason": null,
+                      "cancelledBy": null,
+                      "createdAt": "2026-10-21T17:24:21.017Z",
+                      "patient": {
+                        "id": 12,
+                        "fullName": "Sofía Herrera"
+                      },
+                      "doctor": {
+                        "id": 2,
+                        "fullName": "Andrés Ramírez",
+                        "specialty": "Pediatría",
+                        "appointmentDurationMinutes": 20
+                      },
+                      "canConfirm": true,
+                      "canCancel": true,
+                      "canComplete": false
+                    }
+                  },
+                  "ej2": {
+                    "summary": "Detalle visto por el médico (DOCTOR)",
+                    "value": {
+                      "id": 43,
+                      "startsAt": "2026-10-23T13:20:00.000Z",
+                      "endsAt": "2026-10-23T13:40:00.000Z",
+                      "status": "BOOKED",
+                      "reason": "Control de crecimiento",
+                      "notes": null,
+                      "cancellationReason": null,
+                      "cancelledBy": null,
+                      "createdAt": "2026-10-21T17:24:21.017Z",
+                      "patient": {
+                        "id": 12,
+                        "fullName": "Sofía Herrera",
+                        "documentType": "CC",
+                        "documentNumber": "1045678912",
+                        "phone": "3017654321",
+                        "birthDate": "1998-06-14",
+                        "gender": "FEMALE"
+                      },
+                      "doctor": {
+                        "id": 2,
+                        "fullName": "Andrés Ramírez",
+                        "specialty": "Pediatría",
+                        "appointmentDurationMinutes": 20
+                      },
+                      "canConfirm": false,
+                      "canCancel": true,
+                      "canComplete": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Cita de otro paciente (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "No tiene permiso para realizar esta acción."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/appointments/{id}/confirm": {
+      "patch": {
+        "operationId": "e19",
+        "tags": [
+          "Citas"
+        ],
+        "summary": "19. Confirmar cita",
+        "description": "El paciente titular confirma su asistencia. Sin cuerpo (CU-11).\n\n**Permiso:** Solo paciente, y el recurso debe pertenecer a quien lo pide.",
+        "x-permiso": "PATIENT",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Confirmar cita (PATIENT)",
+                    "value": {
+                      "id": 43,
+                      "startsAt": "2026-10-23T13:20:00.000Z",
+                      "endsAt": "2026-10-23T13:40:00.000Z",
+                      "status": "CONFIRMED",
+                      "reason": "Control de crecimiento",
+                      "notes": null,
+                      "cancellationReason": null,
+                      "cancelledBy": null,
+                      "createdAt": "2026-10-21T17:24:21.017Z",
+                      "patient": {
+                        "id": 12,
+                        "fullName": "Sofía Herrera"
+                      },
+                      "doctor": {
+                        "id": 2,
+                        "fullName": "Andrés Ramírez",
+                        "specialty": "Pediatría",
+                        "appointmentDurationMinutes": 20
+                      },
+                      "canConfirm": false,
+                      "canCancel": true,
+                      "canComplete": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con el estado actual de los datos. Códigos: INVALID_STATE_TRANSITION",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Confirmar una cita ya confirmada (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_STATE_TRANSITION",
+                        "message": "Solo se confirma una cita reservada cuya hora aún no ha pasado."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/appointments/{id}/cancel": {
+      "patch": {
+        "operationId": "e20",
+        "tags": [
+          "Citas"
+        ],
+        "summary": "20. Cancelar cita",
+        "description": "Pueden cancelar el paciente titular (con más de 24 h de anticipación), el médico asignado o un administrador. Guarda el motivo y notifica a la contraparte (RN-24, RN-32.1) (CU-12).\n\n**Permiso:** Cualquier usuario con sesión, y el recurso debe pertenecer a quien lo pide.",
+        "x-permiso": "AUTH",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 255
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Cancelar cita",
+                  "value": {
+                    "reason": "Viaje de trabajo"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Cancelar cita (PATIENT)",
+                    "value": {
+                      "id": 43,
+                      "startsAt": "2026-10-23T13:20:00.000Z",
+                      "endsAt": "2026-10-23T13:40:00.000Z",
+                      "status": "CANCELLED",
+                      "reason": "Control de crecimiento",
+                      "notes": null,
+                      "cancellationReason": "Viaje de trabajo",
+                      "cancelledBy": {
+                        "id": 20,
+                        "fullName": "Sofía Herrera",
+                        "role": "PATIENT"
+                      },
+                      "createdAt": "2026-10-21T17:24:21.017Z",
+                      "patient": {
+                        "id": 12,
+                        "fullName": "Sofía Herrera"
+                      },
+                      "doctor": {
+                        "id": 2,
+                        "fullName": "Andrés Ramírez",
+                        "specialty": "Pediatría",
+                        "appointmentDurationMinutes": 20
+                      },
+                      "canConfirm": false,
+                      "canCancel": false,
+                      "canComplete": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Cancelar sin motivo (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Revise los datos ingresados.",
+                        "details": [
+                          {
+                            "field": "reason",
+                            "message": "Indique el motivo de la cancelación"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN, CANCELLATION_WINDOW_CLOSED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Cancelar con menos de 24 h (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "CANCELLATION_WINDOW_CLOSED",
+                        "message": "Esta cita no se puede cancelar porque faltan menos de 24 horas. Comuníquese con la institución."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con el estado actual de los datos. Códigos: INVALID_STATE_TRANSITION",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/appointments/{id}/complete": {
+      "patch": {
+        "operationId": "e21",
+        "tags": [
+          "Citas"
+        ],
+        "summary": "21. Registrar atención",
+        "description": "El médico asignado marca la cita como atendida, con observaciones opcionales. Solo si la hora de inicio ya pasó (RN-26) (CU-17).\n\n**Permiso:** Solo médico, y el recurso debe pertenecer a quien lo pide.",
+        "x-permiso": "DOCTOR",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 2000
+                      },
+                      {
+                        "type": "string",
+                        "const": ""
+                      }
+                    ]
+                  }
+                }
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Registrar atención",
+                  "value": {
+                    "notes": "Paciente estable. Se indica control en tres meses."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Registrar atención (DOCTOR)",
+                    "value": {
+                      "id": 11,
+                      "startsAt": "2026-10-20T12:30:00.000Z",
+                      "endsAt": "2026-10-20T13:00:00.000Z",
+                      "status": "COMPLETED",
+                      "reason": "Consulta de seguimiento",
+                      "notes": "Paciente estable. Se indica control en tres meses.",
+                      "cancellationReason": null,
+                      "cancelledBy": null,
+                      "createdAt": "2026-10-21T17:24:19.541Z",
+                      "patient": {
+                        "id": 4,
+                        "fullName": "Ana Rodríguez",
+                        "documentType": "CC",
+                        "documentNumber": "1034567890",
+                        "phone": "3012223344",
+                        "birthDate": "2001-01-15",
+                        "gender": "FEMALE"
+                      },
+                      "doctor": {
+                        "id": 1,
+                        "fullName": "Laura Medina",
+                        "specialty": "Medicina General",
+                        "appointmentDurationMinutes": 30
+                      },
+                      "canConfirm": false,
+                      "canCancel": false,
+                      "canComplete": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con el estado actual de los datos. Códigos: INVALID_STATE_TRANSITION",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Cita ya atendida (DOCTOR)",
+                    "value": {
+                      "error": {
+                        "code": "INVALID_STATE_TRANSITION",
+                        "message": "Solo se completa una cita activa cuya hora de inicio ya pasó."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "e22",
+        "tags": [
+          "Administración de usuarios"
+        ],
+        "summary": "22. Listar usuarios",
+        "description": "Búsqueda por nombre, apellido, correo o documento (q) y filtros por rol y estado. Nunca devuelve el hash de la contraseña (RN-31). Respuesta paginada (CU-20).\n\n**Permiso:** Solo administrador.",
+        "x-permiso": "ADMIN",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PATIENT",
+                "DOCTOR",
+                "ADMIN"
+              ]
+            }
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Médicos registrados (ADMIN)",
+                    "value": {
+                      "items": [
+                        {
+                          "id": 8,
+                          "role": "DOCTOR",
+                          "documentType": "CC",
+                          "documentNumber": "71234567",
+                          "firstName": "Pedro",
+                          "lastName": "Cano",
+                          "email": "pedro.cano@medicitas.com",
+                          "phone": "3100000000",
+                          "isActive": true,
+                          "createdAt": "2026-10-21T17:24:19.493Z",
+                          "doctor": {
+                            "id": 6,
+                            "specialty": {
+                              "id": 1,
+                              "name": "Medicina General"
+                            },
+                            "licenseNumber": "RM-60877",
+                            "appointmentDurationMinutes": 30,
+                            "scheduleCount": 0
+                          }
+                        },
+                        {
+                          "id": 3,
+                          "role": "DOCTOR",
+                          "documentType": "CC",
+                          "documentNumber": "52411789",
+                          "firstName": "Laura",
+                          "lastName": "Medina",
+                          "email": "laura.medina@medicitas.com",
+                          "phone": "3100000000",
+                          "isActive": true,
+                          "createdAt": "2026-10-21T17:24:19.475Z",
+                          "doctor": {
+                            "id": 1,
+                            "specialty": {
+                              "id": 1,
+                              "name": "Medicina General"
+                            },
+                            "licenseNumber": "RM-10231",
+                            "appointmentDurationMinutes": 30,
+                            "scheduleCount": 10
+                          }
+                        },
+                        {
+                          "id": 4,
+                          "role": "DOCTOR",
+                          "documentType": "CC",
+                          "documentNumber": "79456123",
+                          "firstName": "Andrés",
+                          "lastName": "Ramírez",
+                          "email": "andres.ramirez@medicitas.com",
+                          "phone": "3100000000",
+                          "isActive": true,
+                          "createdAt": "2026-10-21T17:24:19.483Z",
+                          "doctor": {
+                            "id": 2,
+                            "specialty": {
+                              "id": 2,
+                              "name": "Pediatría"
+                            },
+                            "licenseNumber": "RM-45871",
+                            "appointmentDurationMinutes": 20,
+                            "scheduleCount": 3
+                          }
+                        },
+                        {
+                          "id": 7,
+                          "role": "DOCTOR",
+                          "documentType": "CC",
+                          "documentNumber": "39876543",
+                          "firstName": "Marta",
+                          "lastName": "Ruiz",
+                          "email": "marta.ruiz@medicitas.com",
+                          "phone": "3100000000",
+                          "isActive": true,
+                          "createdAt": "2026-10-21T17:24:19.490Z",
+                          "doctor": {
+                            "id": 5,
+                            "specialty": {
+                              "id": 5,
+                              "name": "Dermatología"
+                            },
+                            "licenseNumber": "RM-51004",
+                            "appointmentDurationMinutes": 15,
+                            "scheduleCount": 6
+                          }
+                        },
+                        {
+                          "id": 6,
+                          "role": "DOCTOR",
+                          "documentType": "CC",
+                          "documentNumber": "80123456",
+                          "firstName": "Jorge",
+                          "lastName": "Salazar",
+                          "email": "jorge.salazar@medicitas.com",
+                          "phone": "3100000000",
+                          "isActive": true,
+                          "createdAt": "2026-10-21T17:24:19.488Z",
+                          "doctor": {
+                            "id": 4,
+                            "specialty": {
+                              "id": 4,
+                              "name": "Cardiología"
+                            },
+                            "licenseNumber": "RM-27615",
+                            "appointmentDurationMinutes": 30,
+                            "scheduleCount": 4
+                          }
+                        },
+                        {
+                          "id": 5,
+                          "role": "DOCTOR",
+                          "documentType": "CC",
+                          "documentNumber": "43987654",
+                          "firstName": "Carolina",
+                          "lastName": "Vega",
+                          "email": "carolina.vega@medicitas.com",
+                          "phone": "3100000000",
+                          "isActive": true,
+                          "createdAt": "2026-10-21T17:24:19.485Z",
+                          "doctor": {
+                            "id": 3,
+                            "specialty": {
+                              "id": 3,
+                              "name": "Ginecología"
+                            },
+                            "licenseNumber": "RM-33920",
+                            "appointmentDurationMinutes": 50,
+                            "scheduleCount": 2
+                          }
+                        }
+                      ],
+                      "page": 1,
+                      "pageSize": 10,
+                      "total": 6,
+                      "totalPages": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Un paciente no administra usuarios (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "No tiene permiso para realizar esta acción."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "e23",
+        "tags": [
+          "Administración de usuarios"
+        ],
+        "summary": "23. Crear médico o administrador",
+        "description": "Los pacientes se registran solos (RN-08). Para DOCTOR son obligatorios specialtyId, licenseNumber y appointmentDurationMinutes. Devuelve, una sola vez, la contraseña temporal generada (RN-08.1) (CU-21).\n\n**Permiso:** Solo administrador.",
+        "x-permiso": "ADMIN",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "role": {
+                        "type": "string",
+                        "const": "DOCTOR"
+                      },
+                      "documentType": {
+                        "type": "string",
+                        "enum": [
+                          "CC",
+                          "TI",
+                          "CE",
+                          "PA"
+                        ]
+                      },
+                      "documentNumber": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9]{5,20}$"
+                      },
+                      "firstName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 60
+                      },
+                      "lastName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 60
+                      },
+                      "email": {
+                        "type": "string",
+                        "maxLength": 150,
+                        "format": "email",
+                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                      },
+                      "phone": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{7,15}$"
+                          },
+                          {
+                            "type": "string",
+                            "const": ""
+                          }
+                        ]
+                      },
+                      "specialtyId": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "licenseNumber": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 30
+                      },
+                      "appointmentDurationMinutes": {
+                        "type": "integer",
+                        "minimum": 10,
+                        "maximum": 120
+                      }
+                    },
+                    "required": [
+                      "role",
+                      "documentType",
+                      "documentNumber",
+                      "firstName",
+                      "lastName",
+                      "email",
+                      "specialtyId",
+                      "licenseNumber",
+                      "appointmentDurationMinutes"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "role": {
+                        "type": "string",
+                        "const": "ADMIN"
+                      },
+                      "documentType": {
+                        "type": "string",
+                        "enum": [
+                          "CC",
+                          "TI",
+                          "CE",
+                          "PA"
+                        ]
+                      },
+                      "documentNumber": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9]{5,20}$"
+                      },
+                      "firstName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 60
+                      },
+                      "lastName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 60
+                      },
+                      "email": {
+                        "type": "string",
+                        "maxLength": 150,
+                        "format": "email",
+                        "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                      },
+                      "phone": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^\\d{7,15}$"
+                          },
+                          {
+                            "type": "string",
+                            "const": ""
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "role",
+                      "documentType",
+                      "documentNumber",
+                      "firstName",
+                      "lastName",
+                      "email"
+                    ]
+                  }
+                ]
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Crear médico",
+                  "value": {
+                    "role": "DOCTOR",
+                    "documentType": "CC",
+                    "documentNumber": "1067845210",
+                    "firstName": "Camila",
+                    "lastName": "Rojas",
+                    "email": "camila.rojas@medicitas.com",
+                    "phone": "3109876543",
+                    "specialtyId": 2,
+                    "licenseNumber": "RM-90123",
+                    "appointmentDurationMinutes": 30
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recurso creado",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Crear médico (ADMIN)",
+                    "value": {
+                      "user": {
+                        "id": 22,
+                        "role": "DOCTOR",
+                        "documentType": "CC",
+                        "documentNumber": "1067845210",
+                        "firstName": "Camila",
+                        "lastName": "Rojas",
+                        "email": "camila.rojas@medicitas.com",
+                        "phone": "3109876543",
+                        "isActive": true,
+                        "createdAt": "2026-10-21T17:24:21.364Z",
+                        "doctor": {
+                          "id": 7,
+                          "specialty": {
+                            "id": 2,
+                            "name": "Pediatría"
+                          },
+                          "licenseNumber": "RM-90123",
+                          "appointmentDurationMinutes": 30,
+                          "scheduleCount": 0
+                        }
+                      },
+                      "temporaryPassword": "Med-7YXd74"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto con el estado actual de los datos. Códigos: EMAIL_ALREADY_EXISTS, DOCUMENT_ALREADY_EXISTS, LICENSE_ALREADY_EXISTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Correo ya registrado (ADMIN)",
+                    "value": {
+                      "error": {
+                        "code": "EMAIL_ALREADY_EXISTS",
+                        "message": "Ya existe una cuenta con ese correo."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}": {
+      "patch": {
+        "operationId": "e24",
+        "tags": [
+          "Administración de usuarios"
+        ],
+        "summary": "24. Editar o desactivar usuario",
+        "description": "Edita isActive, nombre, apellido y teléfono; para médicos también especialidad y duración. El administrador no puede desactivarse a sí mismo (RN-08.4). No existe borrado de usuarios (RN-08.3) (CU-22).\n\n**Permiso:** Solo administrador.",
+        "x-permiso": "ADMIN",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "firstName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60
+                  },
+                  "phone": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d{7,15}$"
+                      },
+                      {
+                        "type": "string",
+                        "const": ""
+                      }
+                    ]
+                  },
+                  "specialtyId": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "appointmentDurationMinutes": {
+                    "type": "integer",
+                    "minimum": 10,
+                    "maximum": 120
+                  }
+                },
+                "additionalProperties": false
+              },
+              "examples": {
+                "ej1": {
+                  "summary": "Cambiar teléfono y desactivar",
+                  "value": {
+                    "phone": "3105556677",
+                    "isActive": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Cambiar teléfono y desactivar (ADMIN)",
+                    "value": {
+                      "id": 22,
+                      "role": "DOCTOR",
+                      "documentType": "CC",
+                      "documentNumber": "1067845210",
+                      "firstName": "Camila",
+                      "lastName": "Rojas",
+                      "email": "camila.rojas@medicitas.com",
+                      "phone": "3105556677",
+                      "isActive": false,
+                      "createdAt": "2026-10-21T17:24:21.364Z",
+                      "doctor": {
+                        "id": 7,
+                        "specialty": {
+                          "id": 2,
+                          "name": "Pediatría"
+                        },
+                        "licenseNumber": "RM-90123",
+                        "appointmentDurationMinutes": 30,
+                        "scheduleCount": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/reset-password": {
+      "post": {
+        "operationId": "e25",
+        "tags": [
+          "Administración de usuarios"
+        ],
+        "summary": "25. Restablecer contraseña",
+        "description": "Genera una contraseña temporal, la guarda cifrada y la devuelve una sola vez. Sin cuerpo (CU-23).\n\n**Permiso:** Solo administrador.",
+        "x-permiso": "ADMIN",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Restablecer contraseña (ADMIN)",
+                    "value": {
+                      "temporaryPassword": "Med-MPzwN6"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Usuario inexistente (ADMIN)",
+                    "value": {
+                      "error": {
+                        "code": "NOT_FOUND",
+                        "message": "El usuario no existe."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "operationId": "e26",
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "26. Listar notificaciones",
+        "description": "Notificaciones del usuario de la sesión, de la más reciente a la más antigua, con el total sin leer (unreadCount) para la campana. Respuesta paginada (CU-25).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "unreadOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Notificaciones sin leer del médico (DOCTOR)",
+                    "value": {
+                      "items": [
+                        {
+                          "id": 131,
+                          "type": "APPOINTMENT_CANCELLED",
+                          "message": "Su cita del 23 de octubre de 2026 a las 8:20 a.m. fue cancelada. Motivo: Viaje de trabajo.",
+                          "appointmentId": 43,
+                          "readAt": null,
+                          "createdAt": "2026-10-21T17:24:21.184Z"
+                        },
+                        {
+                          "id": 130,
+                          "type": "APPOINTMENT_CONFIRMED",
+                          "message": "Sofía Herrera confirmó su cita del 23 de octubre de 2026 a las 8:20 a.m..",
+                          "appointmentId": 43,
+                          "readAt": null,
+                          "createdAt": "2026-10-21T17:24:21.130Z"
+                        },
+                        {
+                          "id": 129,
+                          "type": "APPOINTMENT_BOOKED",
+                          "message": "Sofía Herrera reservó una cita para el 23 de octubre de 2026 a las 8:20 a.m..",
+                          "appointmentId": 43,
+                          "readAt": null,
+                          "createdAt": "2026-10-21T17:24:21.024Z"
+                        }
+                      ],
+                      "unreadCount": 3,
+                      "page": 1,
+                      "pageSize": 10,
+                      "total": 3,
+                      "totalPages": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "patch": {
+        "operationId": "e27",
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "27. Marcar notificación como leída",
+        "description": "Sin cuerpo. Solo sobre notificaciones propias (CU-25).\n\n**Permiso:** Cualquier usuario con sesión, y el recurso debe pertenecer a quien lo pide.",
+        "x-permiso": "AUTH",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador numérico",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Operación exitosa, sin contenido"
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "ej1": {
+                    "summary": "Notificación de otro usuario (PATIENT)",
+                    "value": {
+                      "error": {
+                        "code": "FORBIDDEN",
+                        "message": "No tiene permiso para realizar esta acción."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El recurso no existe (NOT_FOUND). Códigos: NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "patch": {
+        "operationId": "e28",
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "28. Marcar todas como leídas",
+        "description": "Devuelve cuántas notificaciones se actualizaron (CU-25).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Marcar todas como leídas (DOCTOR)",
+                    "value": {
+                      "updated": 2
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard": {
+      "get": {
+        "operationId": "e29",
+        "tags": [
+          "Panel y reportes"
+        ],
+        "summary": "29. Indicadores del panel",
+        "description": "Un solo endpoint que responde según el rol: próxima cita y conteos para el paciente, agenda del día para el médico e indicadores generales para el administrador (RN-36) (CU-18).\n\n**Permiso:** Cualquier usuario con sesión.",
+        "x-permiso": "AUTH",
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Panel del paciente (PATIENT)",
+                    "value": {
+                      "role": "PATIENT",
+                      "nextAppointment": {
+                        "id": 8,
+                        "startsAt": "2026-10-21T19:00:00.000Z",
+                        "endsAt": "2026-10-21T19:30:00.000Z",
+                        "status": "BOOKED",
+                        "reason": "Molestias digestivas",
+                        "notes": null,
+                        "cancellationReason": null,
+                        "cancelledBy": null,
+                        "createdAt": "2026-10-21T17:24:19.535Z",
+                        "patient": {
+                          "id": 1,
+                          "fullName": "Sofía Herrera"
+                        },
+                        "doctor": {
+                          "id": 1,
+                          "fullName": "Laura Medina",
+                          "specialty": "Medicina General",
+                          "appointmentDurationMinutes": 30
+                        },
+                        "canConfirm": true,
+                        "canCancel": false,
+                        "canComplete": false
+                      },
+                      "upcomingCount": 3,
+                      "completedCount": 5
+                    }
+                  },
+                  "ej2": {
+                    "summary": "Panel del médico (DOCTOR)",
+                    "value": {
+                      "role": "DOCTOR",
+                      "todayCount": 0,
+                      "pendingConfirmationCount": 2,
+                      "completedTodayCount": 0,
+                      "nextAppointment": {
+                        "id": 1,
+                        "startsAt": "2026-10-23T13:00:00.000Z",
+                        "endsAt": "2026-10-23T13:20:00.000Z",
+                        "status": "BOOKED",
+                        "reason": "Control de rutina",
+                        "notes": null,
+                        "cancellationReason": null,
+                        "cancelledBy": null,
+                        "createdAt": "2026-10-21T17:24:19.521Z",
+                        "patient": {
+                          "id": 1,
+                          "fullName": "Sofía Herrera",
+                          "documentType": "CC",
+                          "documentNumber": "1098765432",
+                          "phone": "3001234567",
+                          "birthDate": "1995-04-17",
+                          "gender": "FEMALE"
+                        },
+                        "doctor": {
+                          "id": 2,
+                          "fullName": "Andrés Ramírez",
+                          "specialty": "Pediatría",
+                          "appointmentDurationMinutes": 20
+                        },
+                        "canConfirm": false,
+                        "canCancel": true,
+                        "canComplete": false
+                      }
+                    }
+                  },
+                  "ej3": {
+                    "summary": "Panel del administrador (ADMIN)",
+                    "value": {
+                      "role": "ADMIN",
+                      "appointmentsToday": 2,
+                      "appointmentsThisWeek": 7,
+                      "cancelledThisMonth": 7,
+                      "registeredPatients": 11
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/appointments-by-specialty": {
+      "get": {
+        "operationId": "e30",
+        "tags": [
+          "Panel y reportes"
+        ],
+        "summary": "30. Citas por especialidad",
+        "description": "Cuenta las citas no canceladas cuyo inicio cae en el rango, agrupadas por especialidad (RN-37). Por omisión, los últimos 30 días (CU-19).\n\n**Permiso:** Solo administrador.",
+        "x-permiso": "ADMIN",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "ej1": {
+                    "summary": "Citas por especialidad, últimos 30 días (ADMIN)",
+                    "value": {
+                      "from": "2026-09-21",
+                      "to": "2026-10-21",
+                      "items": [
+                        {
+                          "specialtyId": 1,
+                          "specialtyName": "Medicina General",
+                          "total": 6
+                        },
+                        {
+                          "specialtyId": 4,
+                          "specialtyName": "Cardiología",
+                          "total": 3
+                        },
+                        {
+                          "specialtyId": 5,
+                          "specialtyName": "Dermatología",
+                          "total": 3
+                        },
+                        {
+                          "specialtyId": 3,
+                          "specialtyName": "Ginecología",
+                          "total": 3
+                        },
+                        {
+                          "specialtyId": 2,
+                          "specialtyName": "Pediatría",
+                          "total": 3
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos (VALIDATION_ERROR): `details` indica el error de cada campo. Códigos: VALIDATION_ERROR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sin sesión válida o credenciales incorrectas. Códigos: UNAUTHENTICATED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El rol o el dueño del recurso no permiten la operación. Códigos: FORBIDDEN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sesion": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "medicitas_session",
+        "description": "JWT emitido al registrarse o iniciar sesión"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "VALIDATION_ERROR",
+                  "UNAUTHENTICATED",
+                  "INVALID_CREDENTIALS",
+                  "FORBIDDEN",
+                  "CANCELLATION_WINDOW_CLOSED",
+                  "NOT_FOUND",
+                  "EMAIL_ALREADY_EXISTS",
+                  "DOCUMENT_ALREADY_EXISTS",
+                  "LICENSE_ALREADY_EXISTS",
+                  "SLOT_TAKEN",
+                  "PATIENT_APPOINTMENT_TOO_CLOSE",
+                  "INVALID_STATE_TRANSITION",
+                  "SCHEDULE_OVERLAP",
+                  "INTERNAL_ERROR"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "description": "Mensaje en español para el usuario final"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
