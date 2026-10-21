@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  availabilityQuerySchema,
   cancelAppointmentSchema,
   createUserSchema,
   durationSchema,
@@ -9,6 +10,12 @@ import {
 } from './index';
 
 describe('esquemas Zod', () => {
+  it('mes de disponibilidad: solo de 01 a 12', () => {
+    expect(availabilityQuerySchema.safeParse({ month: '2026-10' }).success).toBe(true);
+    expect(availabilityQuerySchema.safeParse({ month: '2026-13' }).success).toBe(false);
+    expect(availabilityQuerySchema.safeParse({ month: '2026-00' }).success).toBe(false);
+  });
+
   it('contraseña: exige minúscula, mayúscula y dígito (RN-04)', () => {
     expect(passwordSchema.safeParse('Medicitas2026').success).toBe(true);
     expect(passwordSchema.safeParse('medicitas2026').success).toBe(false);

@@ -49,7 +49,7 @@ export const listAppointmentsSchema = paginationSchema.extend({
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsSchema>;
 
 export const availabilityQuerySchema = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/, 'El mes debe tener el formato AAAA-MM'),
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'El mes debe tener el formato AAAA-MM'),
 });
 
 export const availableSlotsQuerySchema = z.object({ date: dateStringSchema });
