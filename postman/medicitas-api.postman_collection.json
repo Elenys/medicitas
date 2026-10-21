@@ -1,0 +1,2737 @@
+{
+  "info": {
+    "name": "MediCitas — API REST",
+    "description": "Pruebas de los 30 servicios de la API de MediCitas (evidencia GA7-220501096-AA5-EV04).\nCarlas Elenys Montalvo Mendoza y Freyder López · Ficha 3186702 · https://github.com/Elenys/medicitas\n\nLa sesión viaja en la cookie medicitas_session: Postman la guarda al iniciar sesión y la envía en las peticiones siguientes. Ejecute la colección completa en orden (Run collection): cada carpeta inicia sesión con su rol y las variables encadenan los datos (médico, cupo, cita, notificación, usuario creado).\n\nAntes de ejecutar: docker compose up --build y, para partir de los datos de demostración, docker compose run --rm -e SEED_FORCE=1 migrate.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Autenticación",
+      "item": [
+        {
+          "name": "A01 Registrar paciente nuevo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sufijo único: la colección se puede ejecutar varias veces sin chocar con registros anteriores.",
+                  "pm.collectionVariables.set(\"sufijo\", Date.now().toString().slice(-9));",
+                  "[\"dia\", \"inicioCita\", \"citaId\", \"notificacionId\", \"citaPasadaId\", \"usuarioId\"].forEach((v) => pm.collectionVariables.unset(v));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Crea un usuario con rol PATIENT\", () => { const r = pm.response.json(); pm.expect(r.role).to.eql(\"PATIENT\"); pm.expect(r.email).to.eql(pm.variables.replaceIn(\"sofia.{{sufijo}}@correo.com\")); });",
+                  "pm.test(\"No devuelve la contraseña\", () => { const r = pm.response.json(); pm.expect(r).to.not.have.property(\"passwordHash\"); pm.expect(r).to.not.have.property(\"password\"); });",
+                  "pm.test(\"Emite la cookie de sesión httpOnly\", () => pm.expect(pm.response.headers.get(\"Set-Cookie\")).to.include(\"medicitas_session=\").and.include(\"HttpOnly\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documentType\": \"CC\",\n  \"documentNumber\": \"10{{sufijo}}\",\n  \"firstName\": \"Sofía\",\n  \"lastName\": \"Herrera\",\n  \"email\": \"sofia.{{sufijo}}@correo.com\",\n  \"phone\": \"3004567890\",\n  \"password\": \"{{clave}}\",\n  \"birthDate\": \"1998-06-14\",\n  \"gender\": \"FEMALE\",\n  \"address\": \"Calle 29 # 4-15, Montería\",\n  \"healthProvider\": \"Nueva EPS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Un paciente se registra con datos válidos.\n\nResultado esperado: 201 con el usuario creado (rol PATIENT) y la cookie de sesión.\n\nServicio 1 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "A02 Consultar el usuario de la sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Es la paciente registrada, con perfil de paciente\", () => { const r = pm.response.json(); pm.expect(r.role).to.eql(\"PATIENT\"); pm.expect(r.patient).to.be.an(\"object\"); pm.expect(r.doctor).to.eql(null); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Con la cookie recibida al registrarse, la API reconoce al usuario.\n\nResultado esperado: 200 con el usuario y su perfil de paciente.\n\nServicio 4 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "A03 Registrar con correo repetido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error EMAIL_ALREADY_EXISTS\", () => pm.expect(pm.response.json().error.code).to.eql(\"EMAIL_ALREADY_EXISTS\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documentType\": \"CC\",\n  \"documentNumber\": \"11{{sufijo}}\",\n  \"firstName\": \"Sofía\",\n  \"lastName\": \"Herrera\",\n  \"email\": \"sofia.{{sufijo}}@correo.com\",\n  \"password\": \"{{clave}}\",\n  \"birthDate\": \"1998-06-14\",\n  \"gender\": \"FEMALE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Intentar registrar otra cuenta con el mismo correo.\n\nResultado esperado: 409 EMAIL_ALREADY_EXISTS.\n\nServicio 1 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "A04 Registrar con datos inválidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error VALIDATION_ERROR\", () => pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);",
+                  "pm.test(\"Indica los campos con error\", () => { const r = pm.response.json(); const campos = r.error.details.map((d) => d.field); pm.expect(campos).to.include.members([\"documentType\", \"email\", \"password\", \"birthDate\"]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"correo-invalido\",\n  \"password\": \"corta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Enviar un registro incompleto y con formatos inválidos.\n\nResultado esperado: 400 VALIDATION_ERROR con el detalle de cada campo.\n\nServicio 1 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "A05 Cerrar sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 204\", () => pm.response.to.have.status(204));",
+                  "pm.test(\"Borra la cookie de sesión\", () => pm.expect(pm.response.headers.get(\"Set-Cookie\")).to.include(\"medicitas_session=;\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Cerrar la sesión de la paciente.\n\nResultado esperado: 204 y la cookie borrada.\n\nServicio 3 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "A06 Consultar sin sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error UNAUTHENTICATED\", () => pm.expect(pm.response.json().error.code).to.eql(\"UNAUTHENTICATED\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Después de cerrar sesión, la API ya no reconoce al usuario.\n\nResultado esperado: 401 UNAUTHENTICATED.\n\nServicio 4 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "A07 Iniciar sesión con contraseña incorrecta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error INVALID_CREDENTIALS\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_CREDENTIALS\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sofia.{{sufijo}}@correo.com\",\n  \"password\": \"Equivocada2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Intentar entrar con una contraseña que no corresponde.\n\nResultado esperado: 401 INVALID_CREDENTIALS (no dice si falló el correo o la contraseña).\n\nServicio 2 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "A08 Iniciar sesión con cuenta desactivada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error INVALID_CREDENTIALS\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_CREDENTIALS\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"inactivo@correo.com\",\n  \"password\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "La cuenta de demostración desactivada no puede entrar.\n\nResultado esperado: 401 INVALID_CREDENTIALS.\n\nServicio 2 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "A09 Iniciar sesión como paciente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Devuelve el usuario con rol PATIENT\", () => { const r = pm.response.json(); pm.expect(r.role).to.eql(\"PATIENT\"); pm.expect(r.firstName).to.eql(\"Sofía\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sofia.{{sufijo}}@correo.com\",\n  \"password\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Entrar con el correo y la contraseña de la paciente registrada.\n\nResultado esperado: 200 con el usuario y la cookie de sesión.\n\nServicio 2 de la API."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Paciente",
+      "item": [
+        {
+          "name": "P01 Consultar perfil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Trae los datos de paciente\", () => { const r = pm.response.json(); pm.expect(r.patient.healthProvider).to.eql(\"Nueva EPS\"); pm.expect(r.documentNumber).to.eql(pm.variables.replaceIn(\"10{{sufijo}}\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile"
+              ]
+            },
+            "description": "La paciente consulta sus datos.\n\nResultado esperado: 200 con datos personales y de afiliación.\n\nServicio 5 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P02 Editar perfil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Guarda el teléfono y la EPS\", () => { const r = pm.response.json(); pm.expect(r.phone).to.eql(\"3017654321\"); pm.expect(r.patient.healthProvider).to.eql(\"Sura EPS\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"3017654321\",\n  \"healthProvider\": \"Sura EPS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile"
+              ]
+            },
+            "description": "Cambiar el teléfono y la EPS.\n\nResultado esperado: 200 con los datos actualizados.\n\nServicio 6 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P03 Intentar cambiar el correo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error VALIDATION_ERROR\", () => pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"otro@correo.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile"
+              ]
+            },
+            "description": "El correo identifica al usuario y no es editable.\n\nResultado esperado: 400 VALIDATION_ERROR.\n\nServicio 6 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P04 Cambiar contraseña con la actual incorrecta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error INVALID_CREDENTIALS\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_CREDENTIALS\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"NoEsLaActual1\",\n  \"newPassword\": \"Medicitas2027\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "password"
+              ]
+            },
+            "description": "Cambiar la contraseña sin conocer la actual.\n\nResultado esperado: 401 INVALID_CREDENTIALS.\n\nServicio 7 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P05 Cambiar contraseña",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{clave}}\",\n  \"newPassword\": \"Medicitas2027\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/profile/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "profile",
+                "password"
+              ]
+            },
+            "description": "Cambiar la contraseña con la actual correcta.\n\nResultado esperado: 204 sin contenido.\n\nServicio 7 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P06 Listar especialidades",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Incluye Pediatría y viene ordenado\", () => { const r = pm.response.json(); const nombres = r.map((e) => e.name); pm.expect(nombres).to.include(\"Pediatría\"); pm.expect([...nombres].sort((a, b) => a.localeCompare(b))).to.eql(nombres); });",
+                  "pm.collectionVariables.set(\"pediatriaId\", pm.response.json().find((e) => e.name === \"Pediatría\").id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/specialties",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "specialties"
+              ]
+            },
+            "description": "Consultar el catálogo de especialidades.\n\nResultado esperado: 200 con las especialidades ordenadas por nombre.\n\nServicio 8 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P07 Listar médicos de Pediatría",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Todos son de Pediatría\", () => { const r = pm.response.json(); pm.expect(r.items).to.not.be.empty; r.items.forEach((m) => pm.expect(m.specialty.name).to.eql(\"Pediatría\")); pm.expect(r).to.include.keys(\"page\", \"pageSize\", \"total\", \"totalPages\"); });",
+                  "pm.collectionVariables.set(\"doctorId\", pm.response.json().items[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors?specialtyId={{pediatriaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors"
+              ],
+              "query": [
+                {
+                  "key": "specialtyId",
+                  "value": "{{pediatriaId}}"
+                }
+              ]
+            },
+            "description": "Buscar médicos de una especialidad.\n\nResultado esperado: 200 paginado, solo médicos de Pediatría con horario.\n\nServicio 9 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P08 Detalle del médico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Es el médico elegido\", () => { const r = pm.response.json(); pm.expect(r.id).to.eql(Number(pm.collectionVariables.get(\"doctorId\"))); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/{{doctorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "{{doctorId}}"
+              ]
+            },
+            "description": "Consultar el médico elegido con sus franjas.\n\nResultado esperado: 200 con el médico y sus horarios.\n\nServicio 10 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P09 Médico inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"NOT_FOUND\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "999999"
+              ]
+            },
+            "description": "Pedir un médico que no existe.\n\nResultado esperado: 404 NOT_FOUND.\n\nServicio 10 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P10 Disponibilidad de este mes",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const hoy = new Date();",
+                  "pm.collectionVariables.set(\"mes\", hoy.toISOString().slice(0, 7));",
+                  "// Día mínimo para agendar: dentro de dos días, para poder cancelar con más de 24 h.",
+                  "pm.collectionVariables.set(\"diaMinimo\", new Date(hoy.getTime() + 2 * 86400000).toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Es el mes pedido\", () => { const r = pm.response.json(); pm.expect(r.month).to.eql(pm.collectionVariables.get(\"mes\")); pm.expect(r.days).to.be.an(\"array\"); });",
+                  "const libre = pm.response.json().days.find((d) => d.date >= pm.collectionVariables.get(\"diaMinimo\") && d.availableSlots > 0);",
+                  "if (libre) pm.collectionVariables.set(\"dia\", libre.date);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/{{doctorId}}/availability?month={{mes}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "{{doctorId}}",
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{mes}}"
+                }
+              ]
+            },
+            "description": "Consultar los cupos libres por día del mes actual.\n\nResultado esperado: 200 con los días del mes y sus cupos.\n\nServicio 11 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P11 Disponibilidad del próximo mes",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const h = new Date();",
+                  "pm.collectionVariables.set(\"mesSiguiente\", new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth() + 1, 1)).toISOString().slice(0, 7));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "const libre = pm.response.json().days.find((d) => d.date >= pm.collectionVariables.get(\"diaMinimo\") && d.availableSlots > 0);",
+                  "if (!pm.collectionVariables.get(\"dia\") && libre) pm.collectionVariables.set(\"dia\", libre.date);",
+                  "pm.test(\"Hay un día con cupos libres para agendar\", () => pm.expect(pm.collectionVariables.get(\"dia\")).to.match(/^\\d{4}-\\d{2}-\\d{2}$/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/{{doctorId}}/availability?month={{mesSiguiente}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "{{doctorId}}",
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "{{mesSiguiente}}"
+                }
+              ]
+            },
+            "description": "Consultar el mes siguiente (por si este mes ya no tiene cupos).\n\nResultado esperado: 200 con los días del mes siguiente.\n\nServicio 11 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P12 Disponibilidad con mes inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error VALIDATION_ERROR\", () => pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/{{doctorId}}/availability?month=2026-13",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "{{doctorId}}",
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "2026-13"
+                }
+              ]
+            },
+            "description": "Pedir un mes que no existe (antes de la corrección respondía 500).\n\nResultado esperado: 400 VALIDATION_ERROR.\n\nServicio 11 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P13 Cupos del día",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Hay cupos libres\", () => { const r = pm.response.json(); pm.expect(r.slots.some((s) => s.available)).to.eql(true); pm.expect(r.durationMinutes).to.be.a(\"number\"); });",
+                  "pm.collectionVariables.set(\"inicioCita\", pm.response.json().slots.find((s) => s.available).startsAt);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/{{doctorId}}/available-slots?date={{dia}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "{{doctorId}}",
+                "available-slots"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{dia}}"
+                }
+              ]
+            },
+            "description": "Ver los cupos de la jornada del día elegido.\n\nResultado esperado: 200 con todos los cupos y cuáles están libres.\n\nServicio 12 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P14 Agendar cita",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Cita reservada para la paciente\", () => { const r = pm.response.json(); pm.expect(r.status).to.eql(\"BOOKED\"); pm.expect(r.startsAt).to.eql(pm.collectionVariables.get(\"inicioCita\")); pm.expect(r.patient.fullName).to.include(\"Sofía\"); pm.expect(new Date(r.endsAt) > new Date(r.startsAt)).to.eql(true); });",
+                  "pm.collectionVariables.set(\"citaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": {{doctorId}},\n  \"startsAt\": \"{{inicioCita}}\",\n  \"reason\": \"Control de crecimiento\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments"
+              ]
+            },
+            "description": "Reservar el primer cupo libre.\n\nResultado esperado: 201 con la cita en estado BOOKED; el servidor calcula la hora de fin.\n\nServicio 17 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P15 Agendar en un cupo ya ocupado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"El cupo no se puede reservar dos veces\", () => { const r = pm.response.json(); pm.expect(r.error.code).to.be.oneOf([\"SLOT_TAKEN\", \"PATIENT_APPOINTMENT_TOO_CLOSE\"]); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": {{doctorId}},\n  \"startsAt\": \"{{inicioCita}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments"
+              ]
+            },
+            "description": "Intentar reservar otra vez el mismo cupo.\n\nResultado esperado: 409 SLOT_TAKEN o PATIENT_APPOINTMENT_TOO_CLOSE.\n\nServicio 17 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P16 Listar mis próximas citas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Incluye la cita agendada, que se puede confirmar y cancelar\", () => { const r = pm.response.json(); const c = r.items.find((x) => x.id === Number(pm.collectionVariables.get(\"citaId\"))); pm.expect(c).to.be.an(\"object\"); pm.expect(c.canConfirm).to.eql(true); pm.expect(c.canCancel).to.eql(true); pm.expect(c.canComplete).to.eql(false); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments?scope=upcoming",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "upcoming"
+                }
+              ]
+            },
+            "description": "Ver las próximas citas de la paciente.\n\nResultado esperado: 200 con la cita recién agendada y sus acciones permitidas.\n\nServicio 16 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P17 Detalle de la cita",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Es la cita agendada con el médico elegido\", () => { const r = pm.response.json(); pm.expect(r.id).to.eql(Number(pm.collectionVariables.get(\"citaId\"))); pm.expect(r.doctor.specialty).to.eql(\"Pediatría\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments/{{citaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{citaId}}"
+              ]
+            },
+            "description": "Consultar el detalle de la cita propia.\n\nResultado esperado: 200 con médico, especialidad y horario.\n\nServicio 18 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P18 Confirmar la cita",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Queda confirmada\", () => { const r = pm.response.json(); pm.expect(r.status).to.eql(\"CONFIRMED\"); pm.expect(r.canConfirm).to.eql(false); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments/{{citaId}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{citaId}}",
+                "confirm"
+              ]
+            },
+            "description": "La paciente confirma su asistencia.\n\nResultado esperado: 200 con la cita en estado CONFIRMED.\n\nServicio 19 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P19 Confirmar una cita ya confirmada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error INVALID_STATE_TRANSITION\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_STATE_TRANSITION\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments/{{citaId}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{citaId}}",
+                "confirm"
+              ]
+            },
+            "description": "Confirmar dos veces la misma cita.\n\nResultado esperado: 409 INVALID_STATE_TRANSITION.\n\nServicio 19 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P20 Cancelar sin motivo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error VALIDATION_ERROR\", () => pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);",
+                  "pm.test(\"El error es del campo reason\", () => { const r = pm.response.json(); pm.expect(r.error.details[0].field).to.eql(\"reason\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments/{{citaId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{citaId}}",
+                "cancel"
+              ]
+            },
+            "description": "El motivo de cancelación es obligatorio.\n\nResultado esperado: 400 VALIDATION_ERROR en el campo reason.\n\nServicio 20 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P21 Cancelar la cita",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Queda cancelada con el motivo\", () => { const r = pm.response.json(); pm.expect(r.status).to.eql(\"CANCELLED\"); pm.expect(r.cancellationReason).to.eql(\"Viaje de trabajo\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Viaje de trabajo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments/{{citaId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{citaId}}",
+                "cancel"
+              ]
+            },
+            "description": "Cancelar con más de 24 horas de anticipación.\n\nResultado esperado: 200 con la cita en estado CANCELLED y el motivo guardado.\n\nServicio 20 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P22 Panel del paciente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Panel de paciente\", () => { const r = pm.response.json(); pm.expect(r.role).to.eql(\"PATIENT\"); pm.expect(r).to.include.keys(\"upcomingCount\", \"completedCount\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard"
+              ]
+            },
+            "description": "Indicadores del panel según el rol.\n\nResultado esperado: 200 con role PATIENT y sus conteos.\n\nServicio 29 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P23 Mis notificaciones",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Trae la lista y el total sin leer\", () => { const r = pm.response.json(); pm.expect(r.items).to.be.an(\"array\"); pm.expect(r.unreadCount).to.be.a(\"number\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            },
+            "description": "Ver los avisos de la paciente.\n\nResultado esperado: 200 paginado con unreadCount.\n\nServicio 26 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P24 Intentar administrar usuarios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "Un paciente no puede usar los servicios de administración.\n\nResultado esperado: 403 FORBIDDEN.\n\nServicio 22 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "P25 Intentar consultar franjas de médico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/me/schedules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "me",
+                "schedules"
+              ]
+            },
+            "description": "Un paciente no tiene franjas de atención.\n\nResultado esperado: 403 FORBIDDEN.\n\nServicio 13 de la API."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Médico",
+      "item": [
+        {
+          "name": "M01 Iniciar sesión como médico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Rol DOCTOR\", () => { const r = pm.response.json(); pm.expect(r.role).to.eql(\"DOCTOR\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"andres.ramirez@medicitas.com\",\n  \"password\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Entrar con la cuenta del pediatra de demostración.\n\nResultado esperado: 200 con rol DOCTOR.\n\nServicio 2 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M02 Consultar mis franjas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Tiene duración y franjas\", () => { const r = pm.response.json(); pm.expect(r.appointmentDurationMinutes).to.be.within(10, 120); pm.expect(r.schedules).to.not.be.empty; });",
+                  "pm.collectionVariables.set(\"franjas\", JSON.stringify(pm.response.json().schedules.map(({ weekday, startTime, endTime }) => ({ weekday, startTime, endTime }))));",
+                  "pm.collectionVariables.set(\"duracion\", pm.response.json().appointmentDurationMinutes);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/me/schedules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "me",
+                "schedules"
+              ]
+            },
+            "description": "Ver las franjas semanales y la duración de la consulta.\n\nResultado esperado: 200 con duración y franjas.\n\nServicio 13 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M03 Guardar las franjas de la semana",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Guarda la misma cantidad de franjas\", () => { const r = pm.response.json(); pm.expect(r.schedules.length).to.eql(JSON.parse(pm.collectionVariables.get(\"franjas\")).length); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedules\": {{franjas}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/me/schedules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "me",
+                "schedules"
+              ]
+            },
+            "description": "Reemplazar el conjunto de franjas (se envían las mismas para no alterar la demo).\n\nResultado esperado: 200 con las franjas guardadas.\n\nServicio 14 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M04 Guardar franjas solapadas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error SCHEDULE_OVERLAP\", () => pm.expect(pm.response.json().error.code).to.eql(\"SCHEDULE_OVERLAP\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schedules\": [\n    {\n      \"weekday\": 1,\n      \"startTime\": \"08:00\",\n      \"endTime\": \"12:00\"\n    },\n    {\n      \"weekday\": 1,\n      \"startTime\": \"11:00\",\n      \"endTime\": \"13:00\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/me/schedules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "me",
+                "schedules"
+              ]
+            },
+            "description": "Dos franjas del lunes que se cruzan.\n\nResultado esperado: 409 SCHEDULE_OVERLAP.\n\nServicio 14 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M05 Cambiar la duración de la consulta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentDurationMinutes\": {{duracion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "me"
+              ]
+            },
+            "description": "Guardar la duración de la consulta (la misma, para no alterar la demo).\n\nResultado esperado: 200.\n\nServicio 15 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M06 Duración fuera de rango",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error VALIDATION_ERROR\", () => pm.expect(pm.response.json().error.code).to.eql(\"VALIDATION_ERROR\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentDurationMinutes\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/doctors/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "doctors",
+                "me"
+              ]
+            },
+            "description": "La duración debe estar entre 10 y 120 minutos.\n\nResultado esperado: 400 VALIDATION_ERROR.\n\nServicio 15 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M07 Agenda del día",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Ve la cita cancelada de la paciente\", () => { const r = pm.response.json(); const c = r.items.find((x) => x.id === Number(pm.collectionVariables.get(\"citaId\"))); pm.expect(c.status).to.eql(\"CANCELLED\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments?date={{dia}}&includeCancelled=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{dia}}"
+                },
+                {
+                  "key": "includeCancelled",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "El médico ve su agenda del día, incluidas las canceladas.\n\nResultado esperado: 200 con la cita cancelada por la paciente.\n\nServicio 16 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M08 Detalle de la cita visto por el médico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Incluye datos del paciente\", () => { const r = pm.response.json(); pm.expect(JSON.stringify(r.patient)).to.include(pm.variables.replaceIn(\"10{{sufijo}}\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments/{{citaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{citaId}}"
+              ]
+            },
+            "description": "El médico asignado ve también los datos del paciente.\n\nResultado esperado: 200 con documento y teléfono del paciente.\n\nServicio 18 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M09 Notificaciones sin leer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Hay avisos sin leer\", () => { const r = pm.response.json(); pm.expect(r.items).to.not.be.empty; r.items.forEach((n) => pm.expect(n.readAt).to.eql(null)); });",
+                  "pm.collectionVariables.set(\"notificacionId\", pm.response.json().items[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications?unreadOnly=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "unreadOnly",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "El médico recibió los avisos de la cita agendada y cancelada.\n\nResultado esperado: 200 con notificaciones sin leer.\n\nServicio 26 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M10 Marcar una notificación como leída",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/{{notificacionId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notificacionId}}",
+                "read"
+              ]
+            },
+            "description": "Marcar el aviso más reciente como leído.\n\nResultado esperado: 204 sin contenido.\n\nServicio 27 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M11 Marcar todas como leídas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Indica cuántas actualizó\", () => { const r = pm.response.json(); pm.expect(r.updated).to.be.a(\"number\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Marcar los demás avisos como leídos.\n\nResultado esperado: 200 con la cantidad actualizada.\n\nServicio 28 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M12 Panel del médico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Panel de médico\", () => { const r = pm.response.json(); pm.expect(r.role).to.eql(\"DOCTOR\"); pm.expect(r).to.include.keys(\"todayCount\", \"pendingConfirmationCount\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard"
+              ]
+            },
+            "description": "Indicadores del panel del médico.\n\nResultado esperado: 200 con role DOCTOR y su agenda del día.\n\nServicio 29 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "M13 Intentar agendar como médico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": {{doctorId}},\n  \"startsAt\": \"{{inicioCita}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments"
+              ]
+            },
+            "description": "Solo los pacientes agendan citas.\n\nResultado esperado: 403 FORBIDDEN.\n\nServicio 17 de la API."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Registro de atención",
+      "item": [
+        {
+          "name": "L01 Iniciar sesión como médica",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Rol DOCTOR\", () => { const r = pm.response.json(); pm.expect(r.role).to.eql(\"DOCTOR\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"laura.medina@medicitas.com\",\n  \"password\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Entrar con la médica de demostración que tiene citas pasadas sin registrar.\n\nResultado esperado: 200 con rol DOCTOR.\n\nServicio 2 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "L02 Historial de citas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Hay una cita pasada por atender (si no, reinicie la demo: docker compose run --rm -e SEED_FORCE=1 migrate)\", () => { const r = pm.response.json(); pm.expect(r.items.some((c) => c.canComplete)).to.eql(true); });",
+                  "const porAtender = pm.response.json().items.find((c) => c.canComplete);",
+                  "if (porAtender) pm.collectionVariables.set(\"citaPasadaId\", porAtender.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments?scope=history&pageSize=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "history"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Buscar una cita pasada que aún no tiene atención registrada.\n\nResultado esperado: 200 con al menos una cita que se puede atender.\n\nServicio 16 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "L03 Registrar la atención",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sin cita pasada por atender (la demo trae tres) no tiene sentido ejecutar este paso.",
+                  "if (!pm.collectionVariables.get(\"citaPasadaId\")) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Queda atendida con las observaciones\", () => { const r = pm.response.json(); pm.expect(r.status).to.eql(\"COMPLETED\"); pm.expect(r.notes).to.include(\"control en tres meses\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Paciente estable. Se indica control en tres meses.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments/{{citaPasadaId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{citaPasadaId}}",
+                "complete"
+              ]
+            },
+            "description": "La médica marca la cita como atendida con observaciones.\n\nResultado esperado: 200 con la cita en estado COMPLETED.\n\nServicio 21 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "L04 Registrar otra vez la misma atención",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sin cita pasada por atender (la demo trae tres) no tiene sentido ejecutar este paso.",
+                  "if (!pm.collectionVariables.get(\"citaPasadaId\")) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error INVALID_STATE_TRANSITION\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_STATE_TRANSITION\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments/{{citaPasadaId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments",
+                "{{citaPasadaId}}",
+                "complete"
+              ]
+            },
+            "description": "Una cita atendida no se puede volver a atender.\n\nResultado esperado: 409 INVALID_STATE_TRANSITION.\n\nServicio 21 de la API."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Administrador",
+      "item": [
+        {
+          "name": "D01 Iniciar sesión como administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Rol ADMIN\", () => { const r = pm.response.json(); pm.expect(r.role).to.eql(\"ADMIN\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@medicitas.com\",\n  \"password\": \"{{clave}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Entrar con la cuenta de administración.\n\nResultado esperado: 200 con rol ADMIN.\n\nServicio 2 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D02 Listar médicos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Solo médicos y sin contraseñas\", () => { const r = pm.response.json(); r.items.forEach((u) => { pm.expect(u.role).to.eql(\"DOCTOR\"); pm.expect(u).to.not.have.property(\"passwordHash\"); }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users?role=DOCTOR",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "DOCTOR"
+                }
+              ]
+            },
+            "description": "Consultar los usuarios con rol médico.\n\nResultado esperado: 200 paginado, sin hash de contraseña.\n\nServicio 22 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D03 Crear médico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Crea la médica y entrega contraseña temporal\", () => { const r = pm.response.json(); pm.expect(r.user.role).to.eql(\"DOCTOR\"); pm.expect(r.temporaryPassword).to.be.a(\"string\").with.length.above(7); });",
+                  "pm.collectionVariables.set(\"usuarioId\", pm.response.json().user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"DOCTOR\",\n  \"documentType\": \"CC\",\n  \"documentNumber\": \"20{{sufijo}}\",\n  \"firstName\": \"Camila\",\n  \"lastName\": \"Rojas\",\n  \"email\": \"camila.{{sufijo}}@medicitas.com\",\n  \"phone\": \"3109876543\",\n  \"specialtyId\": {{pediatriaId}},\n  \"licenseNumber\": \"RM-{{sufijo}}\",\n  \"appointmentDurationMinutes\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "Registrar una médica nueva.\n\nResultado esperado: 201 con el usuario y la contraseña temporal (se muestra una sola vez).\n\nServicio 23 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D04 Crear usuario con correo repetido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error EMAIL_ALREADY_EXISTS\", () => pm.expect(pm.response.json().error.code).to.eql(\"EMAIL_ALREADY_EXISTS\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\",\n  \"documentType\": \"CC\",\n  \"documentNumber\": \"21{{sufijo}}\",\n  \"firstName\": \"Otro\",\n  \"lastName\": \"Usuario\",\n  \"email\": \"camila.{{sufijo}}@medicitas.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "El correo ya pertenece a la médica creada.\n\nResultado esperado: 409 EMAIL_ALREADY_EXISTS.\n\nServicio 23 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D05 Editar y desactivar usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Queda desactivada con el teléfono nuevo\", () => { const r = pm.response.json(); pm.expect(r.isActive).to.eql(false); pm.expect(r.phone).to.eql(\"3105556677\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"3105556677\",\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{usuarioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{usuarioId}}"
+              ]
+            },
+            "description": "Cambiar el teléfono y desactivar la cuenta.\n\nResultado esperado: 200 con isActive false.\n\nServicio 24 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D06 Restablecer contraseña",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Entrega una contraseña temporal\", () => { const r = pm.response.json(); pm.expect(r.temporaryPassword).to.be.a(\"string\").with.length.above(7); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{usuarioId}}/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{usuarioId}}",
+                "reset-password"
+              ]
+            },
+            "description": "Generar una contraseña temporal nueva.\n\nResultado esperado: 200 con temporaryPassword.\n\nServicio 25 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D07 Restablecer contraseña de usuario inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error NOT_FOUND\", () => pm.expect(pm.response.json().error.code).to.eql(\"NOT_FOUND\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/999999/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "999999",
+                "reset-password"
+              ]
+            },
+            "description": "El usuario no existe.\n\nResultado esperado: 404 NOT_FOUND.\n\nServicio 25 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D08 Citas canceladas (vista global)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Todas están canceladas\", () => { const r = pm.response.json(); pm.expect(r.items).to.not.be.empty; r.items.forEach((c) => pm.expect(c.status).to.eql(\"CANCELLED\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/appointments?status=CANCELLED&pageSize=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "appointments"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "CANCELLED"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "El administrador ve las citas de todos los pacientes.\n\nResultado esperado: 200 solo con citas canceladas.\n\nServicio 16 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D09 Panel del administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Panel de administrador\", () => { const r = pm.response.json(); pm.expect(r.role).to.eql(\"ADMIN\"); pm.expect(r).to.include.keys(\"appointmentsToday\", \"appointmentsThisWeek\", \"cancelledThisMonth\", \"registeredPatients\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard"
+              ]
+            },
+            "description": "Indicadores generales.\n\nResultado esperado: 200 con role ADMIN e indicadores.\n\nServicio 29 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D10 Reporte de citas por especialidad",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const h = new Date();",
+                  "pm.collectionVariables.set(\"hasta\", h.toISOString().slice(0, 10));",
+                  "pm.collectionVariables.set(\"desde\", new Date(h.getTime() - 30 * 86400000).toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Devuelve el rango pedido y totales\", () => { const r = pm.response.json(); pm.expect(r.from).to.eql(pm.collectionVariables.get(\"desde\")); r.items.forEach((i) => pm.expect(i.total).to.be.a(\"number\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/appointments-by-specialty?from={{desde}}&to={{hasta}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "appointments-by-specialty"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "{{desde}}"
+                },
+                {
+                  "key": "to",
+                  "value": "{{hasta}}"
+                }
+              ]
+            },
+            "description": "Citas no canceladas de los últimos 30 días, por especialidad.\n\nResultado esperado: 200 con el rango y los totales.\n\nServicio 30 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D11 Cerrar sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Terminar la sesión del administrador.\n\nResultado esperado: 204.\n\nServicio 3 de la API."
+          },
+          "response": []
+        },
+        {
+          "name": "D12 Administrar usuarios sin sesión",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Código de estado 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Responde JSON en menos de 2 s\", () => { pm.response.to.be.json; pm.expect(pm.response.responseTime).to.be.below(2000); });",
+                  "pm.test(\"Código de error UNAUTHENTICATED\", () => pm.expect(pm.response.json().error.code).to.eql(\"UNAUTHENTICATED\"));",
+                  "pm.test(\"Mensaje en español para el usuario\", () => pm.expect(pm.response.json().error.message).to.be.a(\"string\").and.not.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "Sin sesión no se puede usar ningún servicio protegido.\n\nResultado esperado: 401 UNAUTHENTICATED.\n\nServicio 22 de la API."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "clave",
+      "value": "Medicitas2026"
+    }
+  ]
+}
