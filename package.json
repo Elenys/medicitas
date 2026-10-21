@@ -18,7 +18,9 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "verify": "npm run typecheck && npm run lint && npm run test",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "api:verificar": "tsx scripts/openapi/verificar.ts",
+    "api:docs": "tsx scripts/openapi/generar.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

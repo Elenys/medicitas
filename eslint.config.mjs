@@ -34,7 +34,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ['src/**/*.test.ts', 'tests/**/*.ts', 'prisma/seed.ts'],
+    files: ['src/**/*.test.ts', 'tests/**/*.ts', 'prisma/seed.ts', 'scripts/**/*.ts'],
     rules: { 'max-params': 'off', 'max-lines-per-function': 'off', 'no-console': 'off' },
   },
   globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'prisma/migrations/**']),

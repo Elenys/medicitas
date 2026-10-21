@@ -1,0 +1,2062 @@
+{
+  "generado": "2026-10-21T17:24:21.672Z",
+  "api": "http://localhost:3100",
+  "ejemplos": {
+    "POST /api/v1/auth/login": {
+      "200": [
+        {
+          "titulo": "Inicio de sesión (ADMIN)",
+          "rol": "ADMIN",
+          "ruta": "/api/v1/auth/login",
+          "cuerpo": {
+            "email": "admin@medicitas.com",
+            "password": "Medicitas2026"
+          },
+          "respuesta": {
+            "id": 1,
+            "role": "ADMIN",
+            "firstName": "Carlas",
+            "lastName": "Montalvo",
+            "email": "admin@medicitas.com"
+          }
+        },
+        {
+          "titulo": "Inicio de sesión (DOCTOR)",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/auth/login",
+          "cuerpo": {
+            "email": "andres.ramirez@medicitas.com",
+            "password": "Medicitas2026"
+          },
+          "respuesta": {
+            "id": 4,
+            "role": "DOCTOR",
+            "firstName": "Andrés",
+            "lastName": "Ramírez",
+            "email": "andres.ramirez@medicitas.com"
+          }
+        },
+        {
+          "titulo": "Inicio de sesión (DOCTOR)",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/auth/login",
+          "cuerpo": {
+            "email": "laura.medina@medicitas.com",
+            "password": "Medicitas2026"
+          },
+          "respuesta": {
+            "id": 3,
+            "role": "DOCTOR",
+            "firstName": "Laura",
+            "lastName": "Medina",
+            "email": "laura.medina@medicitas.com"
+          }
+        },
+        {
+          "titulo": "Inicio de sesión (PATIENT)",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/auth/login",
+          "cuerpo": {
+            "email": "paciente@correo.com",
+            "password": "Medicitas2026"
+          },
+          "respuesta": {
+            "id": 9,
+            "role": "PATIENT",
+            "firstName": "Sofía",
+            "lastName": "Herrera",
+            "email": "paciente@correo.com"
+          }
+        },
+        {
+          "titulo": "Inicio de sesión (PATIENT)",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/auth/login",
+          "cuerpo": {
+            "email": "sofia.herrera@correo.com",
+            "password": "Medicitas2026"
+          },
+          "respuesta": {
+            "id": 20,
+            "role": "PATIENT",
+            "firstName": "Sofía",
+            "lastName": "Herrera",
+            "email": "sofia.herrera@correo.com"
+          }
+        }
+      ],
+      "401": [
+        {
+          "titulo": "Contraseña incorrecta",
+          "rol": "sin sesión",
+          "ruta": "/api/v1/auth/login",
+          "cuerpo": {
+            "email": "sofia.herrera@correo.com",
+            "password": "Equivocada2026"
+          },
+          "respuesta": {
+            "error": {
+              "code": "INVALID_CREDENTIALS",
+              "message": "Correo o contraseña incorrectos."
+            }
+          }
+        },
+        {
+          "titulo": "Cuenta desactivada",
+          "rol": "sin sesión",
+          "ruta": "/api/v1/auth/login",
+          "cuerpo": {
+            "email": "inactivo@correo.com",
+            "password": "Medicitas2026"
+          },
+          "respuesta": {
+            "error": {
+              "code": "INVALID_CREDENTIALS",
+              "message": "Correo o contraseña incorrectos."
+            }
+          }
+        }
+      ]
+    },
+    "POST /api/v1/auth/register": {
+      "201": [
+        {
+          "titulo": "Registro de un paciente nuevo",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/auth/register",
+          "cuerpo": {
+            "documentType": "CC",
+            "documentNumber": "1045678912",
+            "firstName": "Sofía",
+            "lastName": "Herrera",
+            "email": "sofia.herrera@correo.com",
+            "phone": "3004567890",
+            "password": "Medicitas2026",
+            "birthDate": "1998-06-14",
+            "gender": "FEMALE",
+            "address": "Calle 29 # 4-15, Montería",
+            "healthProvider": "Nueva EPS"
+          },
+          "respuesta": {
+            "id": 20,
+            "role": "PATIENT",
+            "firstName": "Sofía",
+            "lastName": "Herrera",
+            "email": "sofia.herrera@correo.com"
+          }
+        }
+      ],
+      "400": [
+        {
+          "titulo": "Datos inválidos",
+          "rol": "sin sesión",
+          "ruta": "/api/v1/auth/register",
+          "cuerpo": {
+            "email": "correo-invalido",
+            "password": "corta"
+          },
+          "respuesta": {
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "Revise los datos ingresados.",
+              "details": [
+                {
+                  "field": "documentType",
+                  "message": "Seleccione el tipo de documento"
+                },
+                {
+                  "field": "documentNumber",
+                  "message": "Invalid input: expected string, received undefined"
+                },
+                {
+                  "field": "firstName",
+                  "message": "Invalid input: expected string, received undefined"
+                },
+                {
+                  "field": "lastName",
+                  "message": "Invalid input: expected string, received undefined"
+                },
+                {
+                  "field": "email",
+                  "message": "Ingrese un correo válido"
+                },
+                {
+                  "field": "password",
+                  "message": "La contraseña debe tener al menos 8 caracteres"
+                },
+                {
+                  "field": "password",
+                  "message": "Debe incluir al menos una mayúscula"
+                },
+                {
+                  "field": "password",
+                  "message": "Debe incluir al menos un dígito"
+                },
+                {
+                  "field": "birthDate",
+                  "message": "Invalid input: expected string, received undefined"
+                },
+                {
+                  "field": "gender",
+                  "message": "Seleccione el género"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "409": [
+        {
+          "titulo": "Correo ya registrado",
+          "rol": "sin sesión",
+          "ruta": "/api/v1/auth/register",
+          "cuerpo": {
+            "documentType": "CC",
+            "documentNumber": "1045678912",
+            "firstName": "Sofía",
+            "lastName": "Herrera",
+            "email": "sofia.herrera@correo.com",
+            "phone": "3004567890",
+            "password": "Medicitas2026",
+            "birthDate": "1998-06-14",
+            "gender": "FEMALE",
+            "address": "Calle 29 # 4-15, Montería",
+            "healthProvider": "Nueva EPS"
+          },
+          "respuesta": {
+            "error": {
+              "code": "EMAIL_ALREADY_EXISTS",
+              "message": "Ya existe una cuenta con ese correo."
+            }
+          }
+        }
+      ]
+    },
+    "GET /api/v1/auth/me": {
+      "200": [
+        {
+          "titulo": "Usuario de la sesión (paciente)",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/auth/me",
+          "respuesta": {
+            "id": 20,
+            "role": "PATIENT",
+            "firstName": "Sofía",
+            "lastName": "Herrera",
+            "email": "sofia.herrera@correo.com",
+            "documentType": "CC",
+            "documentNumber": "1045678912",
+            "phone": "3004567890",
+            "isActive": true,
+            "patient": {
+              "id": 12,
+              "birthDate": "1998-06-14",
+              "gender": "FEMALE",
+              "address": "Calle 29 # 4-15, Montería",
+              "healthProvider": "Nueva EPS"
+            },
+            "doctor": null
+          }
+        },
+        {
+          "titulo": "Usuario de la sesión (médico)",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/auth/me",
+          "respuesta": {
+            "id": 4,
+            "role": "DOCTOR",
+            "firstName": "Andrés",
+            "lastName": "Ramírez",
+            "email": "andres.ramirez@medicitas.com",
+            "documentType": "CC",
+            "documentNumber": "79456123",
+            "phone": "3100000000",
+            "isActive": true,
+            "patient": null,
+            "doctor": {
+              "id": 2,
+              "specialty": {
+                "id": 2,
+                "name": "Pediatría"
+              },
+              "licenseNumber": "RM-45871",
+              "appointmentDurationMinutes": 20
+            }
+          }
+        }
+      ],
+      "401": [
+        {
+          "titulo": "Sin sesión",
+          "rol": "sin sesión",
+          "ruta": "/api/v1/auth/me",
+          "respuesta": {
+            "error": {
+              "code": "UNAUTHENTICATED",
+              "message": "Su sesión ha expirado. Inicie sesión nuevamente."
+            }
+          }
+        },
+        {
+          "titulo": "Después de cerrar sesión",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/auth/me",
+          "respuesta": {
+            "error": {
+              "code": "UNAUTHENTICATED",
+              "message": "Su sesión ha expirado. Inicie sesión nuevamente."
+            }
+          }
+        }
+      ]
+    },
+    "POST /api/v1/auth/logout": {
+      "204": [
+        {
+          "titulo": "Cerrar sesión",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/auth/logout",
+          "respuesta": null
+        }
+      ]
+    },
+    "GET /api/v1/profile": {
+      "200": [
+        {
+          "titulo": "Perfil del paciente",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/profile",
+          "respuesta": {
+            "id": 20,
+            "role": "PATIENT",
+            "firstName": "Sofía",
+            "lastName": "Herrera",
+            "email": "sofia.herrera@correo.com",
+            "documentType": "CC",
+            "documentNumber": "1045678912",
+            "phone": "3004567890",
+            "isActive": true,
+            "patient": {
+              "id": 12,
+              "birthDate": "1998-06-14",
+              "gender": "FEMALE",
+              "address": "Calle 29 # 4-15, Montería",
+              "healthProvider": "Nueva EPS"
+            },
+            "doctor": null
+          }
+        }
+      ]
+    },
+    "PATCH /api/v1/profile": {
+      "200": [
+        {
+          "titulo": "Actualizar teléfono y EPS",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/profile",
+          "cuerpo": {
+            "phone": "3017654321",
+            "healthProvider": "Sura EPS"
+          },
+          "respuesta": {
+            "id": 20,
+            "role": "PATIENT",
+            "firstName": "Sofía",
+            "lastName": "Herrera",
+            "email": "sofia.herrera@correo.com",
+            "documentType": "CC",
+            "documentNumber": "1045678912",
+            "phone": "3017654321",
+            "isActive": true,
+            "patient": {
+              "id": 12,
+              "birthDate": "1998-06-14",
+              "gender": "FEMALE",
+              "address": "Calle 29 # 4-15, Montería",
+              "healthProvider": "Sura EPS"
+            },
+            "doctor": null
+          }
+        }
+      ],
+      "400": [
+        {
+          "titulo": "El correo no es editable",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/profile",
+          "cuerpo": {
+            "email": "otro@correo.com"
+          },
+          "respuesta": {
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "Revise los datos ingresados.",
+              "details": [
+                {
+                  "field": "",
+                  "message": "Unrecognized key: \"email\""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "PATCH /api/v1/profile/password": {
+      "204": [
+        {
+          "titulo": "Cambiar contraseña",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/profile/password",
+          "cuerpo": {
+            "currentPassword": "Medicitas2026",
+            "newPassword": "Medicitas2027"
+          },
+          "respuesta": null
+        }
+      ],
+      "401": [
+        {
+          "titulo": "Contraseña actual incorrecta",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/profile/password",
+          "cuerpo": {
+            "currentPassword": "NoEsLaActual1",
+            "newPassword": "Medicitas2027"
+          },
+          "respuesta": {
+            "error": {
+              "code": "INVALID_CREDENTIALS",
+              "message": "Correo o contraseña incorrectos."
+            }
+          }
+        }
+      ]
+    },
+    "GET /api/v1/specialties": {
+      "200": [
+        {
+          "titulo": "Especialidades",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/specialties",
+          "respuesta": [
+            {
+              "id": 4,
+              "name": "Cardiología",
+              "description": "Enfermedades del corazón y sistema circulatorio"
+            },
+            {
+              "id": 5,
+              "name": "Dermatología",
+              "description": "Enfermedades de la piel"
+            },
+            {
+              "id": 3,
+              "name": "Ginecología",
+              "description": "Salud femenina y reproductiva"
+            },
+            {
+              "id": 1,
+              "name": "Medicina General",
+              "description": "Atención primaria y valoración inicial"
+            },
+            {
+              "id": 2,
+              "name": "Pediatría",
+              "description": "Atención de niños y adolescentes"
+            }
+          ]
+        }
+      ]
+    },
+    "GET /api/v1/doctors": {
+      "200": [
+        {
+          "titulo": "Médicos de Pediatría",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/doctors?specialtyId=2",
+          "respuesta": {
+            "items": [
+              {
+                "id": 2,
+                "fullName": "Andrés Ramírez",
+                "specialty": {
+                  "id": 2,
+                  "name": "Pediatría"
+                },
+                "appointmentDurationMinutes": 20,
+                "nextAvailableDate": "2026-10-23"
+              }
+            ],
+            "page": 1,
+            "pageSize": 10,
+            "total": 1,
+            "totalPages": 1
+          }
+        }
+      ]
+    },
+    "GET /api/v1/doctors/{id}": {
+      "200": [
+        {
+          "titulo": "Detalle del médico",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/doctors/2",
+          "respuesta": {
+            "id": 2,
+            "userId": 4,
+            "fullName": "Andrés Ramírez",
+            "specialty": {
+              "id": 2,
+              "name": "Pediatría"
+            },
+            "durationMinutes": 20,
+            "schedules": [
+              {
+                "weekday": 1,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 3,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 5,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              }
+            ]
+          }
+        }
+      ],
+      "404": [
+        {
+          "titulo": "Médico inexistente",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/doctors/999999",
+          "respuesta": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "El médico no existe."
+            }
+          }
+        }
+      ]
+    },
+    "GET /api/v1/doctors/{id}/availability": {
+      "200": [
+        {
+          "titulo": "Disponibilidad de 2026-10",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/doctors/2/availability?month=2026-10",
+          "respuesta": {
+            "month": "2026-10",
+            "days": [
+              {
+                "date": "2026-10-21",
+                "availableSlots": 0
+              },
+              {
+                "date": "2026-10-22",
+                "availableSlots": 0
+              },
+              {
+                "date": "2026-10-23",
+                "availableSlots": 11
+              },
+              {
+                "date": "2026-10-24",
+                "availableSlots": 0
+              },
+              {
+                "date": "2026-10-25",
+                "availableSlots": 0
+              },
+              {
+                "date": "2026-10-26",
+                "availableSlots": 11
+              },
+              {
+                "date": "2026-10-27",
+                "availableSlots": 0
+              },
+              {
+                "date": "2026-10-28",
+                "availableSlots": 12
+              },
+              {
+                "date": "2026-10-29",
+                "availableSlots": 0
+              },
+              {
+                "date": "2026-10-30",
+                "availableSlots": 11
+              },
+              {
+                "date": "2026-10-31",
+                "availableSlots": 0
+              }
+            ]
+          }
+        }
+      ],
+      "400": [
+        {
+          "titulo": "Mes con formato inválido",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/doctors/2/availability?month=2026-13",
+          "respuesta": {
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "Revise los datos ingresados.",
+              "details": [
+                {
+                  "field": "month",
+                  "message": "El mes debe tener el formato AAAA-MM"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "GET /api/v1/doctors/{id}/available-slots": {
+      "200": [
+        {
+          "titulo": "Cupos del día",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/doctors/2/available-slots?date=2026-10-23",
+          "respuesta": {
+            "date": "2026-10-23",
+            "durationMinutes": 20,
+            "slots": [
+              {
+                "startsAt": "2026-10-23T13:00:00.000Z",
+                "endsAt": "2026-10-23T13:20:00.000Z",
+                "available": false
+              },
+              {
+                "startsAt": "2026-10-23T13:20:00.000Z",
+                "endsAt": "2026-10-23T13:40:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T13:40:00.000Z",
+                "endsAt": "2026-10-23T14:00:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T14:00:00.000Z",
+                "endsAt": "2026-10-23T14:20:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T14:20:00.000Z",
+                "endsAt": "2026-10-23T14:40:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T14:40:00.000Z",
+                "endsAt": "2026-10-23T15:00:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T15:00:00.000Z",
+                "endsAt": "2026-10-23T15:20:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T15:20:00.000Z",
+                "endsAt": "2026-10-23T15:40:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T15:40:00.000Z",
+                "endsAt": "2026-10-23T16:00:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T16:00:00.000Z",
+                "endsAt": "2026-10-23T16:20:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T16:20:00.000Z",
+                "endsAt": "2026-10-23T16:40:00.000Z",
+                "available": true
+              },
+              {
+                "startsAt": "2026-10-23T16:40:00.000Z",
+                "endsAt": "2026-10-23T17:00:00.000Z",
+                "available": true
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "GET /api/v1/doctors/me/schedules": {
+      "200": [
+        {
+          "titulo": "Franjas del médico",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/doctors/me/schedules",
+          "respuesta": {
+            "appointmentDurationMinutes": 20,
+            "schedules": [
+              {
+                "weekday": 1,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 3,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 5,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              }
+            ],
+            "weeklySlots": 36
+          }
+        }
+      ],
+      "403": [
+        {
+          "titulo": "Un paciente no tiene franjas",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/doctors/me/schedules",
+          "respuesta": {
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "No tiene permiso para realizar esta acción."
+            }
+          }
+        }
+      ]
+    },
+    "PUT /api/v1/doctors/me/schedules": {
+      "200": [
+        {
+          "titulo": "Guardar las franjas de la semana",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/doctors/me/schedules",
+          "cuerpo": {
+            "schedules": [
+              {
+                "weekday": 1,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 3,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 5,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              }
+            ]
+          },
+          "respuesta": {
+            "appointmentDurationMinutes": 20,
+            "schedules": [
+              {
+                "weekday": 1,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 3,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 5,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              }
+            ],
+            "weeklySlots": 36
+          }
+        }
+      ],
+      "409": [
+        {
+          "titulo": "Franjas solapadas",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/doctors/me/schedules",
+          "cuerpo": {
+            "schedules": [
+              {
+                "weekday": 1,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 1,
+                "startTime": "11:00",
+                "endTime": "13:00"
+              }
+            ]
+          },
+          "respuesta": {
+            "error": {
+              "code": "SCHEDULE_OVERLAP",
+              "message": "Dos franjas del mismo día se solapan. Corríjalas."
+            }
+          }
+        }
+      ]
+    },
+    "PATCH /api/v1/doctors/me": {
+      "200": [
+        {
+          "titulo": "Duración de la consulta",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/doctors/me",
+          "cuerpo": {
+            "appointmentDurationMinutes": 20
+          },
+          "respuesta": {
+            "appointmentDurationMinutes": 20,
+            "schedules": [
+              {
+                "weekday": 1,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 3,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              },
+              {
+                "weekday": 5,
+                "startTime": "08:00",
+                "endTime": "12:00"
+              }
+            ],
+            "weeklySlots": 36
+          }
+        }
+      ],
+      "400": [
+        {
+          "titulo": "Duración fuera de rango",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/doctors/me",
+          "cuerpo": {
+            "appointmentDurationMinutes": 5
+          },
+          "respuesta": {
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "Revise los datos ingresados.",
+              "details": [
+                {
+                  "field": "appointmentDurationMinutes",
+                  "message": "Mínimo 10 minutos"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "POST /api/v1/appointments": {
+      "201": [
+        {
+          "titulo": "Agendar cita",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments",
+          "cuerpo": {
+            "doctorId": 2,
+            "startsAt": "2026-10-23T13:20:00.000Z",
+            "reason": "Control de crecimiento"
+          },
+          "respuesta": {
+            "id": 43,
+            "startsAt": "2026-10-23T13:20:00.000Z",
+            "endsAt": "2026-10-23T13:40:00.000Z",
+            "status": "BOOKED",
+            "reason": "Control de crecimiento",
+            "notes": null,
+            "cancellationReason": null,
+            "cancelledBy": null,
+            "createdAt": "2026-10-21T17:24:21.017Z",
+            "patient": {
+              "id": 12,
+              "fullName": "Sofía Herrera"
+            },
+            "doctor": {
+              "id": 2,
+              "fullName": "Andrés Ramírez",
+              "specialty": "Pediatría",
+              "appointmentDurationMinutes": 20
+            },
+            "canConfirm": true,
+            "canCancel": true,
+            "canComplete": false
+          }
+        }
+      ],
+      "403": [
+        {
+          "titulo": "Un médico no agenda citas",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/appointments",
+          "cuerpo": {
+            "doctorId": 2,
+            "startsAt": "2026-10-23T13:20:00.000Z"
+          },
+          "respuesta": {
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "No tiene permiso para realizar esta acción."
+            }
+          }
+        }
+      ],
+      "409": [
+        {
+          "titulo": "Cupo ya ocupado",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments",
+          "cuerpo": {
+            "doctorId": 2,
+            "startsAt": "2026-10-23T13:20:00.000Z",
+            "reason": "Consulta"
+          },
+          "respuesta": {
+            "error": {
+              "code": "SLOT_TAKEN",
+              "message": "Ese horario acaba de ser reservado por otra persona. Elija otra franja."
+            }
+          }
+        }
+      ]
+    },
+    "GET /api/v1/appointments": {
+      "200": [
+        {
+          "titulo": "Próximas citas del paciente",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments?scope=upcoming",
+          "respuesta": {
+            "items": [
+              {
+                "id": 43,
+                "startsAt": "2026-10-23T13:20:00.000Z",
+                "endsAt": "2026-10-23T13:40:00.000Z",
+                "status": "BOOKED",
+                "reason": "Control de crecimiento",
+                "notes": null,
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:21.017Z",
+                "patient": {
+                  "id": 12,
+                  "fullName": "Sofía Herrera"
+                },
+                "doctor": {
+                  "id": 2,
+                  "fullName": "Andrés Ramírez",
+                  "specialty": "Pediatría",
+                  "appointmentDurationMinutes": 20
+                },
+                "canConfirm": true,
+                "canCancel": true,
+                "canComplete": false
+              }
+            ],
+            "page": 1,
+            "pageSize": 10,
+            "total": 1,
+            "totalPages": 1
+          }
+        },
+        {
+          "titulo": "Agenda del día del médico",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/appointments?date=2026-10-23",
+          "respuesta": {
+            "items": [
+              {
+                "id": 1,
+                "startsAt": "2026-10-23T13:00:00.000Z",
+                "endsAt": "2026-10-23T13:20:00.000Z",
+                "status": "BOOKED",
+                "reason": "Control de rutina",
+                "notes": null,
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:19.521Z",
+                "patient": {
+                  "id": 1,
+                  "fullName": "Sofía Herrera",
+                  "documentType": "CC",
+                  "documentNumber": "1098765432",
+                  "phone": "3001234567",
+                  "birthDate": "1995-04-17",
+                  "gender": "FEMALE"
+                },
+                "doctor": {
+                  "id": 2,
+                  "fullName": "Andrés Ramírez",
+                  "specialty": "Pediatría",
+                  "appointmentDurationMinutes": 20
+                },
+                "canConfirm": false,
+                "canCancel": true,
+                "canComplete": false
+              },
+              {
+                "id": 43,
+                "startsAt": "2026-10-23T13:20:00.000Z",
+                "endsAt": "2026-10-23T13:40:00.000Z",
+                "status": "BOOKED",
+                "reason": "Control de crecimiento",
+                "notes": null,
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:21.017Z",
+                "patient": {
+                  "id": 12,
+                  "fullName": "Sofía Herrera",
+                  "documentType": "CC",
+                  "documentNumber": "1045678912",
+                  "phone": "3017654321",
+                  "birthDate": "1998-06-14",
+                  "gender": "FEMALE"
+                },
+                "doctor": {
+                  "id": 2,
+                  "fullName": "Andrés Ramírez",
+                  "specialty": "Pediatría",
+                  "appointmentDurationMinutes": 20
+                },
+                "canConfirm": false,
+                "canCancel": true,
+                "canComplete": false
+              }
+            ],
+            "page": 1,
+            "pageSize": 10,
+            "total": 2,
+            "totalPages": 1
+          }
+        },
+        {
+          "titulo": "Próximas citas (paciente de demostración)",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments?scope=upcoming&pageSize=50",
+          "respuesta": {
+            "items": [
+              {
+                "id": 8,
+                "startsAt": "2026-10-21T19:00:00.000Z",
+                "endsAt": "2026-10-21T19:30:00.000Z",
+                "status": "BOOKED",
+                "reason": "Molestias digestivas",
+                "notes": null,
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:19.535Z",
+                "patient": {
+                  "id": 1,
+                  "fullName": "Sofía Herrera"
+                },
+                "doctor": {
+                  "id": 1,
+                  "fullName": "Laura Medina",
+                  "specialty": "Medicina General",
+                  "appointmentDurationMinutes": 30
+                },
+                "canConfirm": true,
+                "canCancel": false,
+                "canComplete": false
+              },
+              {
+                "id": 1,
+                "startsAt": "2026-10-23T13:00:00.000Z",
+                "endsAt": "2026-10-23T13:20:00.000Z",
+                "status": "BOOKED",
+                "reason": "Control de rutina",
+                "notes": null,
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:19.521Z",
+                "patient": {
+                  "id": 1,
+                  "fullName": "Sofía Herrera"
+                },
+                "doctor": {
+                  "id": 2,
+                  "fullName": "Andrés Ramírez",
+                  "specialty": "Pediatría",
+                  "appointmentDurationMinutes": 20
+                },
+                "canConfirm": true,
+                "canCancel": true,
+                "canComplete": false
+              },
+              {
+                "id": 2,
+                "startsAt": "2026-10-28T19:00:00.000Z",
+                "endsAt": "2026-10-28T19:30:00.000Z",
+                "status": "CONFIRMED",
+                "reason": "Dolor en el pecho al caminar",
+                "notes": null,
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:19.525Z",
+                "patient": {
+                  "id": 1,
+                  "fullName": "Sofía Herrera"
+                },
+                "doctor": {
+                  "id": 4,
+                  "fullName": "Jorge Salazar",
+                  "specialty": "Cardiología",
+                  "appointmentDurationMinutes": 30
+                },
+                "canConfirm": false,
+                "canCancel": true,
+                "canComplete": false
+              }
+            ],
+            "page": 1,
+            "pageSize": 50,
+            "total": 3,
+            "totalPages": 1
+          }
+        },
+        {
+          "titulo": "Historial de la médica",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/appointments?scope=history&page=1&pageSize=50",
+          "respuesta": {
+            "items": [
+              {
+                "id": 11,
+                "startsAt": "2026-10-20T12:30:00.000Z",
+                "endsAt": "2026-10-20T13:00:00.000Z",
+                "status": "BOOKED",
+                "reason": "Consulta de seguimiento",
+                "notes": null,
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:19.541Z",
+                "patient": {
+                  "id": 4,
+                  "fullName": "Ana Rodríguez",
+                  "documentType": "CC",
+                  "documentNumber": "1034567890",
+                  "phone": "3012223344",
+                  "birthDate": "2001-01-15",
+                  "gender": "FEMALE"
+                },
+                "doctor": {
+                  "id": 1,
+                  "fullName": "Laura Medina",
+                  "specialty": "Medicina General",
+                  "appointmentDurationMinutes": 30
+                },
+                "canConfirm": false,
+                "canCancel": true,
+                "canComplete": true
+              },
+              {
+                "id": 10,
+                "startsAt": "2026-10-20T12:00:00.000Z",
+                "endsAt": "2026-10-20T12:30:00.000Z",
+                "status": "BOOKED",
+                "reason": "Revisión de exámenes",
+                "notes": null,
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:19.539Z",
+                "patient": {
+                  "id": 3,
+                  "fullName": "Carlos Pérez",
+                  "documentType": "CC",
+                  "documentNumber": "1023456789",
+                  "phone": "3204567890",
+                  "birthDate": "1979-06-23",
+                  "gender": "MALE"
+                },
+                "doctor": {
+                  "id": 1,
+                  "fullName": "Laura Medina",
+                  "specialty": "Medicina General",
+                  "appointmentDurationMinutes": 30
+                },
+                "canConfirm": false,
+                "canCancel": true,
+                "canComplete": true
+              },
+              {
+                "id": 3,
+                "startsAt": "2026-10-16T12:00:00.000Z",
+                "endsAt": "2026-10-16T12:30:00.000Z",
+                "status": "COMPLETED",
+                "reason": "Control de rutina",
+                "notes": "Paciente estable. Se indica control en tres meses.",
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:19.527Z",
+                "patient": {
+                  "id": 1,
+                  "fullName": "Sofía Herrera",
+                  "documentType": "CC",
+                  "documentNumber": "1098765432",
+                  "phone": "3001234567",
+                  "birthDate": "1995-04-17",
+                  "gender": "FEMALE"
+                },
+                "doctor": {
+                  "id": 1,
+                  "fullName": "Laura Medina",
+                  "specialty": "Medicina General",
+                  "appointmentDurationMinutes": 30
+                },
+                "canConfirm": false,
+                "canCancel": false,
+                "canComplete": false
+              },
+              {
+                "id": 16,
+                "startsAt": "2026-10-07T12:00:00.000Z",
+                "endsAt": "2026-10-07T12:30:00.000Z",
+                "status": "COMPLETED",
+                "reason": "Dolor en el pecho al caminar",
+                "notes": "Se formula tratamiento por 7 días y reposo.",
+                "cancellationReason": null,
+                "cancelledBy": null,
+                "createdAt": "2026-10-21T17:24:19.550Z",
+                "patient": {
+                  "id": 6,
+                  "fullName": "Valentina López",
+                  "documentType": "CC",
+                  "documentNumber": "1056789012",
+                  "phone": "3112233445",
+                  "birthDate": "2010-03-08",
+                  "gender": "FEMALE"
+                },
+                "doctor": {
+                  "id": 1,
+                  "fullName": "Laura Medina",
+                  "specialty": "Medicina General",
+                  "appointmentDurationMinutes": 30
+                },
+                "canConfirm": false,
+                "canCancel": false,
+                "canComplete": false
+              },
+              {
+                "id": 24,
+                "startsAt": "2026-10-06T12:00:00.000Z",
+                "endsAt": "2026-10-06T12:30:00.000Z",
+                "status": "CANCELLED",
+                "reason": "Erupción en la piel",
+                "notes": null,
+                "cancellationReason": "El paciente ya fue atendido por urgencias",
+                "cancelledBy": {
+                  "id": 16,
+                  "fullName": "Camila Torres",
+                  "role": "PATIENT"
+                },
+                "createdAt": "2026-10-21T17:24:19.564Z",
+                "patient": {
+                  "id": 8,
+                  "fullName": "Camila Torres",
+                  "documentType": "CC",
+                  "documentNumber": "1078901234",
+                  "phone": "3134455667",
+                  "birthDate": "1992-07-19",
+                  "gender": "FEMALE"
+                },
+                "doctor": {
+                  "id": 1,
+                  "fullName": "Laura Medina",
+                  "specialty": "Medicina General",
+                  "appointmentDurationMinutes": 30
+                },
+                "canConfirm": false,
+                "canCancel": false,
+                "canComplete": false
+              }
+            ],
+            "page": 1,
+            "pageSize": 50,
+            "total": 5,
+            "totalPages": 1
+          }
+        }
+      ]
+    },
+    "GET /api/v1/appointments/{id}": {
+      "200": [
+        {
+          "titulo": "Detalle visto por el paciente",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments/43",
+          "respuesta": {
+            "id": 43,
+            "startsAt": "2026-10-23T13:20:00.000Z",
+            "endsAt": "2026-10-23T13:40:00.000Z",
+            "status": "BOOKED",
+            "reason": "Control de crecimiento",
+            "notes": null,
+            "cancellationReason": null,
+            "cancelledBy": null,
+            "createdAt": "2026-10-21T17:24:21.017Z",
+            "patient": {
+              "id": 12,
+              "fullName": "Sofía Herrera"
+            },
+            "doctor": {
+              "id": 2,
+              "fullName": "Andrés Ramírez",
+              "specialty": "Pediatría",
+              "appointmentDurationMinutes": 20
+            },
+            "canConfirm": true,
+            "canCancel": true,
+            "canComplete": false
+          }
+        },
+        {
+          "titulo": "Detalle visto por el médico",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/appointments/43",
+          "respuesta": {
+            "id": 43,
+            "startsAt": "2026-10-23T13:20:00.000Z",
+            "endsAt": "2026-10-23T13:40:00.000Z",
+            "status": "BOOKED",
+            "reason": "Control de crecimiento",
+            "notes": null,
+            "cancellationReason": null,
+            "cancelledBy": null,
+            "createdAt": "2026-10-21T17:24:21.017Z",
+            "patient": {
+              "id": 12,
+              "fullName": "Sofía Herrera",
+              "documentType": "CC",
+              "documentNumber": "1045678912",
+              "phone": "3017654321",
+              "birthDate": "1998-06-14",
+              "gender": "FEMALE"
+            },
+            "doctor": {
+              "id": 2,
+              "fullName": "Andrés Ramírez",
+              "specialty": "Pediatría",
+              "appointmentDurationMinutes": 20
+            },
+            "canConfirm": false,
+            "canCancel": true,
+            "canComplete": false
+          }
+        }
+      ],
+      "403": [
+        {
+          "titulo": "Cita de otro paciente",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments/43",
+          "respuesta": {
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "No tiene permiso para realizar esta acción."
+            }
+          }
+        }
+      ]
+    },
+    "PATCH /api/v1/appointments/{id}/confirm": {
+      "200": [
+        {
+          "titulo": "Confirmar cita",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments/43/confirm",
+          "respuesta": {
+            "id": 43,
+            "startsAt": "2026-10-23T13:20:00.000Z",
+            "endsAt": "2026-10-23T13:40:00.000Z",
+            "status": "CONFIRMED",
+            "reason": "Control de crecimiento",
+            "notes": null,
+            "cancellationReason": null,
+            "cancelledBy": null,
+            "createdAt": "2026-10-21T17:24:21.017Z",
+            "patient": {
+              "id": 12,
+              "fullName": "Sofía Herrera"
+            },
+            "doctor": {
+              "id": 2,
+              "fullName": "Andrés Ramírez",
+              "specialty": "Pediatría",
+              "appointmentDurationMinutes": 20
+            },
+            "canConfirm": false,
+            "canCancel": true,
+            "canComplete": false
+          }
+        }
+      ],
+      "409": [
+        {
+          "titulo": "Confirmar una cita ya confirmada",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments/43/confirm",
+          "respuesta": {
+            "error": {
+              "code": "INVALID_STATE_TRANSITION",
+              "message": "Solo se confirma una cita reservada cuya hora aún no ha pasado."
+            }
+          }
+        }
+      ]
+    },
+    "PATCH /api/v1/appointments/{id}/cancel": {
+      "200": [
+        {
+          "titulo": "Cancelar cita",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments/43/cancel",
+          "cuerpo": {
+            "reason": "Viaje de trabajo"
+          },
+          "respuesta": {
+            "id": 43,
+            "startsAt": "2026-10-23T13:20:00.000Z",
+            "endsAt": "2026-10-23T13:40:00.000Z",
+            "status": "CANCELLED",
+            "reason": "Control de crecimiento",
+            "notes": null,
+            "cancellationReason": "Viaje de trabajo",
+            "cancelledBy": {
+              "id": 20,
+              "fullName": "Sofía Herrera",
+              "role": "PATIENT"
+            },
+            "createdAt": "2026-10-21T17:24:21.017Z",
+            "patient": {
+              "id": 12,
+              "fullName": "Sofía Herrera"
+            },
+            "doctor": {
+              "id": 2,
+              "fullName": "Andrés Ramírez",
+              "specialty": "Pediatría",
+              "appointmentDurationMinutes": 20
+            },
+            "canConfirm": false,
+            "canCancel": false,
+            "canComplete": false
+          }
+        }
+      ],
+      "400": [
+        {
+          "titulo": "Cancelar sin motivo",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments/43/cancel",
+          "cuerpo": {
+            "reason": ""
+          },
+          "respuesta": {
+            "error": {
+              "code": "VALIDATION_ERROR",
+              "message": "Revise los datos ingresados.",
+              "details": [
+                {
+                  "field": "reason",
+                  "message": "Indique el motivo de la cancelación"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "403": [
+        {
+          "titulo": "Cancelar con menos de 24 h",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/appointments/8/cancel",
+          "cuerpo": {
+            "reason": "No puedo asistir"
+          },
+          "respuesta": {
+            "error": {
+              "code": "CANCELLATION_WINDOW_CLOSED",
+              "message": "Esta cita no se puede cancelar porque faltan menos de 24 horas. Comuníquese con la institución."
+            }
+          }
+        }
+      ]
+    },
+    "PATCH /api/v1/appointments/{id}/complete": {
+      "200": [
+        {
+          "titulo": "Registrar atención",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/appointments/11/complete",
+          "cuerpo": {
+            "notes": "Paciente estable. Se indica control en tres meses."
+          },
+          "respuesta": {
+            "id": 11,
+            "startsAt": "2026-10-20T12:30:00.000Z",
+            "endsAt": "2026-10-20T13:00:00.000Z",
+            "status": "COMPLETED",
+            "reason": "Consulta de seguimiento",
+            "notes": "Paciente estable. Se indica control en tres meses.",
+            "cancellationReason": null,
+            "cancelledBy": null,
+            "createdAt": "2026-10-21T17:24:19.541Z",
+            "patient": {
+              "id": 4,
+              "fullName": "Ana Rodríguez",
+              "documentType": "CC",
+              "documentNumber": "1034567890",
+              "phone": "3012223344",
+              "birthDate": "2001-01-15",
+              "gender": "FEMALE"
+            },
+            "doctor": {
+              "id": 1,
+              "fullName": "Laura Medina",
+              "specialty": "Medicina General",
+              "appointmentDurationMinutes": 30
+            },
+            "canConfirm": false,
+            "canCancel": false,
+            "canComplete": false
+          }
+        }
+      ],
+      "409": [
+        {
+          "titulo": "Cita ya atendida",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/appointments/11/complete",
+          "cuerpo": {},
+          "respuesta": {
+            "error": {
+              "code": "INVALID_STATE_TRANSITION",
+              "message": "Solo se completa una cita activa cuya hora de inicio ya pasó."
+            }
+          }
+        }
+      ]
+    },
+    "GET /api/v1/users": {
+      "200": [
+        {
+          "titulo": "Médicos registrados",
+          "rol": "ADMIN",
+          "ruta": "/api/v1/users?role=DOCTOR",
+          "respuesta": {
+            "items": [
+              {
+                "id": 8,
+                "role": "DOCTOR",
+                "documentType": "CC",
+                "documentNumber": "71234567",
+                "firstName": "Pedro",
+                "lastName": "Cano",
+                "email": "pedro.cano@medicitas.com",
+                "phone": "3100000000",
+                "isActive": true,
+                "createdAt": "2026-10-21T17:24:19.493Z",
+                "doctor": {
+                  "id": 6,
+                  "specialty": {
+                    "id": 1,
+                    "name": "Medicina General"
+                  },
+                  "licenseNumber": "RM-60877",
+                  "appointmentDurationMinutes": 30,
+                  "scheduleCount": 0
+                }
+              },
+              {
+                "id": 3,
+                "role": "DOCTOR",
+                "documentType": "CC",
+                "documentNumber": "52411789",
+                "firstName": "Laura",
+                "lastName": "Medina",
+                "email": "laura.medina@medicitas.com",
+                "phone": "3100000000",
+                "isActive": true,
+                "createdAt": "2026-10-21T17:24:19.475Z",
+                "doctor": {
+                  "id": 1,
+                  "specialty": {
+                    "id": 1,
+                    "name": "Medicina General"
+                  },
+                  "licenseNumber": "RM-10231",
+                  "appointmentDurationMinutes": 30,
+                  "scheduleCount": 10
+                }
+              },
+              {
+                "id": 4,
+                "role": "DOCTOR",
+                "documentType": "CC",
+                "documentNumber": "79456123",
+                "firstName": "Andrés",
+                "lastName": "Ramírez",
+                "email": "andres.ramirez@medicitas.com",
+                "phone": "3100000000",
+                "isActive": true,
+                "createdAt": "2026-10-21T17:24:19.483Z",
+                "doctor": {
+                  "id": 2,
+                  "specialty": {
+                    "id": 2,
+                    "name": "Pediatría"
+                  },
+                  "licenseNumber": "RM-45871",
+                  "appointmentDurationMinutes": 20,
+                  "scheduleCount": 3
+                }
+              },
+              {
+                "id": 7,
+                "role": "DOCTOR",
+                "documentType": "CC",
+                "documentNumber": "39876543",
+                "firstName": "Marta",
+                "lastName": "Ruiz",
+                "email": "marta.ruiz@medicitas.com",
+                "phone": "3100000000",
+                "isActive": true,
+                "createdAt": "2026-10-21T17:24:19.490Z",
+                "doctor": {
+                  "id": 5,
+                  "specialty": {
+                    "id": 5,
+                    "name": "Dermatología"
+                  },
+                  "licenseNumber": "RM-51004",
+                  "appointmentDurationMinutes": 15,
+                  "scheduleCount": 6
+                }
+              },
+              {
+                "id": 6,
+                "role": "DOCTOR",
+                "documentType": "CC",
+                "documentNumber": "80123456",
+                "firstName": "Jorge",
+                "lastName": "Salazar",
+                "email": "jorge.salazar@medicitas.com",
+                "phone": "3100000000",
+                "isActive": true,
+                "createdAt": "2026-10-21T17:24:19.488Z",
+                "doctor": {
+                  "id": 4,
+                  "specialty": {
+                    "id": 4,
+                    "name": "Cardiología"
+                  },
+                  "licenseNumber": "RM-27615",
+                  "appointmentDurationMinutes": 30,
+                  "scheduleCount": 4
+                }
+              },
+              {
+                "id": 5,
+                "role": "DOCTOR",
+                "documentType": "CC",
+                "documentNumber": "43987654",
+                "firstName": "Carolina",
+                "lastName": "Vega",
+                "email": "carolina.vega@medicitas.com",
+                "phone": "3100000000",
+                "isActive": true,
+                "createdAt": "2026-10-21T17:24:19.485Z",
+                "doctor": {
+                  "id": 3,
+                  "specialty": {
+                    "id": 3,
+                    "name": "Ginecología"
+                  },
+                  "licenseNumber": "RM-33920",
+                  "appointmentDurationMinutes": 50,
+                  "scheduleCount": 2
+                }
+              }
+            ],
+            "page": 1,
+            "pageSize": 10,
+            "total": 6,
+            "totalPages": 1
+          }
+        }
+      ],
+      "403": [
+        {
+          "titulo": "Un paciente no administra usuarios",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/users",
+          "respuesta": {
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "No tiene permiso para realizar esta acción."
+            }
+          }
+        }
+      ]
+    },
+    "POST /api/v1/users": {
+      "201": [
+        {
+          "titulo": "Crear médico",
+          "rol": "ADMIN",
+          "ruta": "/api/v1/users",
+          "cuerpo": {
+            "role": "DOCTOR",
+            "documentType": "CC",
+            "documentNumber": "1067845210",
+            "firstName": "Camila",
+            "lastName": "Rojas",
+            "email": "camila.rojas@medicitas.com",
+            "phone": "3109876543",
+            "specialtyId": 2,
+            "licenseNumber": "RM-90123",
+            "appointmentDurationMinutes": 30
+          },
+          "respuesta": {
+            "user": {
+              "id": 22,
+              "role": "DOCTOR",
+              "documentType": "CC",
+              "documentNumber": "1067845210",
+              "firstName": "Camila",
+              "lastName": "Rojas",
+              "email": "camila.rojas@medicitas.com",
+              "phone": "3109876543",
+              "isActive": true,
+              "createdAt": "2026-10-21T17:24:21.364Z",
+              "doctor": {
+                "id": 7,
+                "specialty": {
+                  "id": 2,
+                  "name": "Pediatría"
+                },
+                "licenseNumber": "RM-90123",
+                "appointmentDurationMinutes": 30,
+                "scheduleCount": 0
+              }
+            },
+            "temporaryPassword": "Med-7YXd74"
+          }
+        }
+      ],
+      "409": [
+        {
+          "titulo": "Correo ya registrado",
+          "rol": "ADMIN",
+          "ruta": "/api/v1/users",
+          "cuerpo": {
+            "role": "ADMIN",
+            "documentType": "CC",
+            "documentNumber": "1067845211",
+            "firstName": "Otro",
+            "lastName": "Correo",
+            "email": "camila.rojas@medicitas.com"
+          },
+          "respuesta": {
+            "error": {
+              "code": "EMAIL_ALREADY_EXISTS",
+              "message": "Ya existe una cuenta con ese correo."
+            }
+          }
+        }
+      ]
+    },
+    "PATCH /api/v1/users/{id}": {
+      "200": [
+        {
+          "titulo": "Cambiar teléfono y desactivar",
+          "rol": "ADMIN",
+          "ruta": "/api/v1/users/22",
+          "cuerpo": {
+            "phone": "3105556677",
+            "isActive": false
+          },
+          "respuesta": {
+            "id": 22,
+            "role": "DOCTOR",
+            "documentType": "CC",
+            "documentNumber": "1067845210",
+            "firstName": "Camila",
+            "lastName": "Rojas",
+            "email": "camila.rojas@medicitas.com",
+            "phone": "3105556677",
+            "isActive": false,
+            "createdAt": "2026-10-21T17:24:21.364Z",
+            "doctor": {
+              "id": 7,
+              "specialty": {
+                "id": 2,
+                "name": "Pediatría"
+              },
+              "licenseNumber": "RM-90123",
+              "appointmentDurationMinutes": 30,
+              "scheduleCount": 0
+            }
+          }
+        }
+      ]
+    },
+    "POST /api/v1/users/{id}/reset-password": {
+      "200": [
+        {
+          "titulo": "Restablecer contraseña",
+          "rol": "ADMIN",
+          "ruta": "/api/v1/users/22/reset-password",
+          "respuesta": {
+            "temporaryPassword": "Med-MPzwN6"
+          }
+        }
+      ],
+      "404": [
+        {
+          "titulo": "Usuario inexistente",
+          "rol": "ADMIN",
+          "ruta": "/api/v1/users/999999/reset-password",
+          "respuesta": {
+            "error": {
+              "code": "NOT_FOUND",
+              "message": "El usuario no existe."
+            }
+          }
+        }
+      ]
+    },
+    "GET /api/v1/notifications": {
+      "200": [
+        {
+          "titulo": "Notificaciones sin leer del médico",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/notifications?unreadOnly=true",
+          "respuesta": {
+            "items": [
+              {
+                "id": 131,
+                "type": "APPOINTMENT_CANCELLED",
+                "message": "Su cita del 23 de octubre de 2026 a las 8:20 a.m. fue cancelada. Motivo: Viaje de trabajo.",
+                "appointmentId": 43,
+                "readAt": null,
+                "createdAt": "2026-10-21T17:24:21.184Z"
+              },
+              {
+                "id": 130,
+                "type": "APPOINTMENT_CONFIRMED",
+                "message": "Sofía Herrera confirmó su cita del 23 de octubre de 2026 a las 8:20 a.m..",
+                "appointmentId": 43,
+                "readAt": null,
+                "createdAt": "2026-10-21T17:24:21.130Z"
+              },
+              {
+                "id": 129,
+                "type": "APPOINTMENT_BOOKED",
+                "message": "Sofía Herrera reservó una cita para el 23 de octubre de 2026 a las 8:20 a.m..",
+                "appointmentId": 43,
+                "readAt": null,
+                "createdAt": "2026-10-21T17:24:21.024Z"
+              }
+            ],
+            "unreadCount": 3,
+            "page": 1,
+            "pageSize": 10,
+            "total": 3,
+            "totalPages": 1
+          }
+        }
+      ]
+    },
+    "PATCH /api/v1/notifications/{id}/read": {
+      "204": [
+        {
+          "titulo": "Marcar como leída",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/notifications/131/read",
+          "respuesta": null
+        }
+      ],
+      "403": [
+        {
+          "titulo": "Notificación de otro usuario",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/notifications/131/read",
+          "respuesta": {
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "No tiene permiso para realizar esta acción."
+            }
+          }
+        }
+      ]
+    },
+    "PATCH /api/v1/notifications/read-all": {
+      "200": [
+        {
+          "titulo": "Marcar todas como leídas",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/notifications/read-all",
+          "respuesta": {
+            "updated": 2
+          }
+        }
+      ]
+    },
+    "GET /api/v1/dashboard": {
+      "200": [
+        {
+          "titulo": "Panel del paciente",
+          "rol": "PATIENT",
+          "ruta": "/api/v1/dashboard",
+          "respuesta": {
+            "role": "PATIENT",
+            "nextAppointment": {
+              "id": 8,
+              "startsAt": "2026-10-21T19:00:00.000Z",
+              "endsAt": "2026-10-21T19:30:00.000Z",
+              "status": "BOOKED",
+              "reason": "Molestias digestivas",
+              "notes": null,
+              "cancellationReason": null,
+              "cancelledBy": null,
+              "createdAt": "2026-10-21T17:24:19.535Z",
+              "patient": {
+                "id": 1,
+                "fullName": "Sofía Herrera"
+              },
+              "doctor": {
+                "id": 1,
+                "fullName": "Laura Medina",
+                "specialty": "Medicina General",
+                "appointmentDurationMinutes": 30
+              },
+              "canConfirm": true,
+              "canCancel": false,
+              "canComplete": false
+            },
+            "upcomingCount": 3,
+            "completedCount": 5
+          }
+        },
+        {
+          "titulo": "Panel del médico",
+          "rol": "DOCTOR",
+          "ruta": "/api/v1/dashboard",
+          "respuesta": {
+            "role": "DOCTOR",
+            "todayCount": 0,
+            "pendingConfirmationCount": 2,
+            "completedTodayCount": 0,
+            "nextAppointment": {
+              "id": 1,
+              "startsAt": "2026-10-23T13:00:00.000Z",
+              "endsAt": "2026-10-23T13:20:00.000Z",
+              "status": "BOOKED",
+              "reason": "Control de rutina",
+              "notes": null,
+              "cancellationReason": null,
+              "cancelledBy": null,
+              "createdAt": "2026-10-21T17:24:19.521Z",
+              "patient": {
+                "id": 1,
+                "fullName": "Sofía Herrera",
+                "documentType": "CC",
+                "documentNumber": "1098765432",
+                "phone": "3001234567",
+                "birthDate": "1995-04-17",
+                "gender": "FEMALE"
+              },
+              "doctor": {
+                "id": 2,
+                "fullName": "Andrés Ramírez",
+                "specialty": "Pediatría",
+                "appointmentDurationMinutes": 20
+              },
+              "canConfirm": false,
+              "canCancel": true,
+              "canComplete": false
+            }
+          }
+        },
+        {
+          "titulo": "Panel del administrador",
+          "rol": "ADMIN",
+          "ruta": "/api/v1/dashboard",
+          "respuesta": {
+            "role": "ADMIN",
+            "appointmentsToday": 2,
+            "appointmentsThisWeek": 7,
+            "cancelledThisMonth": 7,
+            "registeredPatients": 11
+          }
+        }
+      ]
+    },
+    "GET /api/v1/reports/appointments-by-specialty": {
+      "200": [
+        {
+          "titulo": "Citas por especialidad, últimos 30 días",
+          "rol": "ADMIN",
+          "ruta": "/api/v1/reports/appointments-by-specialty?from=2026-09-21&to=2026-10-21",
+          "respuesta": {
+            "from": "2026-09-21",
+            "to": "2026-10-21",
+            "items": [
+              {
+                "specialtyId": 1,
+                "specialtyName": "Medicina General",
+                "total": 6
+              },
+              {
+                "specialtyId": 4,
+                "specialtyName": "Cardiología",
+                "total": 3
+              },
+              {
+                "specialtyId": 5,
+                "specialtyName": "Dermatología",
+                "total": 3
+              },
+              {
+                "specialtyId": 3,
+                "specialtyName": "Ginecología",
+                "total": 3
+              },
+              {
+                "specialtyId": 2,
+                "specialtyName": "Pediatría",
+                "total": 3
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
