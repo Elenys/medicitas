@@ -1,0 +1,55 @@
+# MediCitas — integración continua (ajuste técnico T-01, GA11-220501098-AA3-EV01).
+# Ejecuta en cada envío las mismas
+# verificaciones que exige especificacion/07 §7 «Antes de integrar».
+name: Verificación
+
+on:
+  push:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  verificar:
+    name: Tipos, estándar y pruebas unitarias
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://medicitas:medicitas@localhost:5432/medicitas?schema=public
+      JWT_SECRET: valor-solo-para-ci-con-mas-de-32-caracteres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prettier --check src prisma
+      - run: npm run verify
+      - run: npm run build
+
+  integracion:
+    name: Pruebas de integración (PostgreSQL 16)
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: medicitas
+          POSTGRES_PASSWORD: medicitas
+          POSTGRES_DB: medicitas
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U medicitas -d medicitas"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      JWT_SECRET: valor-solo-para-ci-con-mas-de-32-caracteres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run test:integration
