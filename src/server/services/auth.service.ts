@@ -54,12 +54,23 @@ export async function registerPatient(input: RegisterInput): Promise<SessionUser
   return toSessionUser(user);
 }
 
-/** CU-02. Nunca distingue correo inexistente, contraseña incorrecta ni cuenta inactiva. */
+let dummyHash: Promise<string> | undefined;
+
+/** Hash de relleno: un correo inexistente o inactivo cuesta lo mismo que una clave incorrecta. */
+function getDummyHash(): Promise<string> {
+  dummyHash ??= hashPassword('cuenta-inexistente-o-inactiva');
+  return dummyHash;
+}
+
+/**
+ * CU-02. Nunca distingue correo inexistente, contraseña incorrecta ni cuenta inactiva,
+ * ni por el mensaje ni por el tiempo: siempre se compara con bcrypt (07 §8).
+ */
 export async function login(input: LoginInput): Promise<SessionUser> {
   const user = await prisma.user.findUnique({ where: { email: input.email } });
-  if (!user || !user.isActive) throw new InvalidCredentialsError();
-  const matches = await bcrypt.compare(input.password, user.passwordHash);
-  if (!matches) throw new InvalidCredentialsError();
+  const hash = user?.passwordHash ?? (await getDummyHash());
+  const matches = await bcrypt.compare(input.password, hash);
+  if (!user || !user.isActive || !matches) throw new InvalidCredentialsError();
   return toSessionUser(user);
 }
 
