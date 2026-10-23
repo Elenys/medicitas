@@ -75,7 +75,7 @@ export default function DoctorAgendaPage() {
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
-        <h2 className="ml-2 text-lg font-semibold capitalize" aria-live="polite">
+        <h2 className="ml-2 text-lg font-semibold first-letter:uppercase" aria-live="polite">
           {formatWeekdayDate(`${date}T12:00:00`)}
         </h2>
         <label className="ml-auto flex min-h-12 items-center gap-2 text-sm">

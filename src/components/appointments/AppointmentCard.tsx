@@ -59,7 +59,7 @@ export function AppointmentCard({
         <div className="flex items-center gap-2">
           <CalendarDays aria-hidden="true" className="text-content-muted h-4 w-4" />
           <dt className="sr-only">Fecha</dt>
-          <dd className="capitalize">{formatWeekdayDate(a.startsAt)}</dd>
+          <dd className="first-letter:uppercase">{formatWeekdayDate(a.startsAt)}</dd>
         </div>
         <div className="flex items-center gap-2">
           <Clock aria-hidden="true" className="text-content-muted h-4 w-4" />

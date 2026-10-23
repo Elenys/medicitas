@@ -51,7 +51,7 @@ export function AvailabilityCalendar({
         >
           <ChevronLeft />
         </button>
-        <p className="font-semibold capitalize" aria-live="polite">
+        <p className="font-semibold first-letter:uppercase" aria-live="polite">
           {formatMonthTitle(`${month}-01T12:00:00`)}{' '}
           {isFetching && <Spinner size="sm" className="text-primary-dark ml-2 align-middle" />}
         </p>
